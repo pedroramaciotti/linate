@@ -29,7 +29,7 @@ n_components = 2
 n_iter = 10
 copy = True
 check_input = True
-engine = 'auto'
+engine = 'auto'    # 'auto' 'sklearn' 'fbpca'
 random_state = None
 
 #########################
@@ -42,7 +42,7 @@ random_state = None
 
 First, the user loads a directed graph. 
 One column is source and the other is target (of the edges)
-Nodes ids are whatever the user wants: strings, integers
+Nodes ids are whatever the user wants: strings, integers, internally they are converted to strings
 
 """
 
@@ -56,6 +56,8 @@ folder = '/home/foula/linate_ca/correspondence_analysis/linate_module/data/twitt
 #path_to_network_data = os.path.join(folder, 'test_directed_incomplete_graph_header.csv')
 #path_to_network_data = os.path.join(folder, 'test_directed_complete_graph_header.csv')
 path_to_network_data = os.path.join(folder, 'test_bipirtite_graph_no_header.csv')
+
+output_folder = 'ca_results/'
 
 # check network file exists
 if not os.path.isfile(path_to_network_data):
@@ -176,7 +178,9 @@ for c in column_names:
     new_column_names.append('ca_component_' + str(c))
 ca_row_coordinates_.columns = new_column_names
 ca_row_coordinates_.index = row_ids_
-print(ca_row_coordinates_)
+ca_row_coordinates_.index.name = 'source ID'
+#print(ca_row_coordinates_)
+ca_row_coordinates_.to_csv(os.path.join(output_folder, 'ca_row_coordinates.csv'))
 
 ca_column_coordinates_ = ca_model.column_coordinates(ntwrk_np) # pandas data frame
 column_names = ca_column_coordinates_.columns
@@ -185,7 +189,9 @@ for c in column_names:
     new_column_names.append('ca_component_' + str(c))
 ca_column_coordinates_.columns = new_column_names
 ca_column_coordinates_.index = column_ids_
-print(ca_column_coordinates_)
+ca_column_coordinates_.index.name = 'target ID'
+#print(ca_column_coordinates_)
+ca_column_coordinates_.to_csv(os.path.join(output_folder, 'ca_column_coordinates.csv'))
 
 #########################
 #
