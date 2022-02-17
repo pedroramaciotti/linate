@@ -23,7 +23,7 @@ import prince
 # Foula : should we have two thresholds?
 degree_threshold = 2 # nodes that follow, or are followed by, less than this number, are taken out of the network
 # number of CA components to keep
-n_components = -1
+n_components = 3
 
 # PRINCE/CA computation hyper-parameters
 n_iter = 10
@@ -46,9 +46,9 @@ Nodes ids are whatever the user wants: strings, integers, internally they are co
 
 """
 
-#folder = '/Users/pedroramaciotti/Proyectos/SciencesPo/WorkFiles/Programs2022/ConsolidatedTwitter2019Dataset/DataSources/'
+folder = '/Users/pedroramaciotti/Proyectos/SciencesPo/WorkFiles/Programs2022/ConsolidatedTwitter2019Dataset/DataSources/'
 #folder = '/home/foula/linate_ca/correspondence_analysis/linate_module/data/twitter_networks/'
-folder = '/home/foula/correspondence_analysis/data/twitter_bipartite_graphs/'
+# folder = '/home/foula/correspondence_analysis/data/twitter_bipartite_graphs/'
 
 # <- this one is a bipartite graph (uncomment one)
 # path_to_network_data = folder+'bipartite_831MPs_4424402followers.csv'   
@@ -58,8 +58,10 @@ folder = '/home/foula/correspondence_analysis/data/twitter_bipartite_graphs/'
 #path_to_network_data = os.path.join(folder, 'test_directed_complete_graph_header.csv')
 #path_to_network_data = os.path.join(folder, 'test_bipirtite_graph_no_header.csv')
 #path_to_network_data = os.path.join(folder, 'UnitedStates_20201027_MPs_followers_tids_test.csv')
-path_to_network_data = os.path.join(folder, 'FranceOwn_20201026_MPs_followers_tids_test.csv')
+# path_to_network_data = os.path.join(folder, 'FranceOwn_20201026_MPs_followers_tids_test.csv')
+# path_to_network_data = os.path.join(folder, 'FranceOwn_20201026_MPs_followers_tids_test.csv')
 #path_to_network_data = os.path.join(folder, 'Malta_20201027_MPs_followers_tids_test.csv')
+path_to_network_data = os.path.join(folder, 'bipartite_831MPs_4424402followers.csv')
 
 output_folder = 'ca_results/'
 
@@ -181,6 +183,8 @@ ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups))))
 ntwrk_np = ntwrk_csr.toarray()
 #print(ntwrk_np.shape)
 #print(ntwrk_np)
+
+raise
 
 #########################
 #
