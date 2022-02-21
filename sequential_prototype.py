@@ -20,10 +20,8 @@ import prince
 #                      
 ###########################################################################
 
-# Foula : should we have two thresholds?
-degree_threshold = 2 # nodes that follow, or are followed by, less than this number, are taken out of the network
-
-# NOTE = degree threshold for in-degree and out-degree
+in_degree_threshold = 2 # nodes that are followed by, less than this number (in the original graph), are taken out of the network, default None
+out_degree_threshold = 2 # nodes that follow, less than this number (in the original graph), are taken out of the network
 
 # number of CA components to keep
 n_components = 3
@@ -32,14 +30,13 @@ n_components = 3
 n_iter = 10
 copy = True
 check_input = True
-engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca'
+#engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca'
+engine = 'sklearn'
 random_state = None
 
 # file-reading parameters
-col_renaming = {'source':'follower_id','target':'twitter_id'} # default = None
-
-
-
+header_names = None # default: no header
+#header_names = {'source':'source', 'target':'target1'} # default = None
 
 #########################
 #
@@ -55,9 +52,10 @@ Nodes ids are whatever the user wants: strings, integers, internally they are co
 
 """
 
-folder = '/Users/pedroramaciotti/Proyectos/SciencesPo/WorkFiles/Programs2022/ConsolidatedTwitter2019Dataset/DataSources/'
+#folder = '/Users/pedroramaciotti/Proyectos/SciencesPo/WorkFiles/Programs2022/ConsolidatedTwitter2019Dataset/DataSources/'
 #folder = '/home/foula/linate_ca/correspondence_analysis/linate_module/data/twitter_networks/'
-# folder = '/home/foula/correspondence_analysis/data/twitter_bipartite_graphs/'
+#folder = '/home/foula/correspondence_analysis/data/twitter_bipartite_graphs/'
+folder = '/home/foula/FoulaDatasetAttitudinalEmbedding/'
 
 # <- this one is a bipartite graph (uncomment one)
 # path_to_network_data = folder+'bipartite_831MPs_4424402followers.csv'   
@@ -85,23 +83,23 @@ if column_no < 2:
     raise ValueError('Network file has to have at least two columns.')
 
 # sanity checks in header
-if 'source' in header_df.columns:
-    if 'target' not in header_df.columns:
-        raise ValueError('Network file has to have a \'target\' column.')
-if 'target' in header_df.columns:
-    if 'source' not in header_df.columns:
-        raise ValueError('Network file has to have a \'source\' column.')
+if header_names is not None:
+    if header_names['source'] not in header_df.columns:
+        raise ValueError('Network file has to have a ' + header_names['source'] + ' column.')
+    if header_names['target'] not in header_df.columns:
+        raise ValueError('Network file has to have a ' + header_names['target'] + ' column.')
 
 input_df = None
-if 'source' in header_df.columns:
-    input_df = pd.read_csv(path_to_network_data, dtype = {'source':str, 'target':str})
-else:
+if header_names is None:
     if column_no == 2: 
         input_df = pd.read_csv(path_to_network_data, header = None, 
-                dtype = {0:str,1:str}).rename(columns = {0:'source', 1:'target'})
+                dtype = {0:str, 1:str}).rename(columns = {0:'source', 1:'target'})
     else: 
         input_df = pd.read_csv(path_to_network_data, header = None, 
-                dtype = {0:str,1:str}).rename(columns = {0:'source', 1:'target', 2:'multiplicity'})
+                dtype = {0:str, 1:str}).rename(columns = {0:'source', 1:'target', 2:'multiplicity'})
+else:
+    input_df = pd.read_csv(path_to_network_data, dtype = {header_names['source']:str,
+        header_names['target']:str}).rename(columns = {header_names['source']:'source', header_names['target']:'target'})
 
 #########################
 #
@@ -122,14 +120,12 @@ Once the user loads the graph, there are several things that must be checked aut
 
 """
 
-# in some python/pandas versions this seems as needed
-input_df['source'] = input_df['source'].astype(str)
-input_df['target'] = input_df['target'].astype(str)
-
 # remove NAs
 input_df.dropna(subset = ['source', 'target'], inplace = True)
 
-# NOTE: There are some "nan" here using (bipartite_831MPs_4424402followers.csv). Maybe a NaN converted to nan when .astype(str) ? 
+# in some python/pandas versions this seems as needed
+input_df['source'] = input_df['source'].astype(str)
+input_df['target'] = input_df['target'].astype(str)
 
 # Is the graph a multigraph ?
 # There are two ways of being multigraph:
@@ -139,7 +135,7 @@ input_df.dropna(subset = ['source', 'target'], inplace = True)
 # checking 1
 has_more_columns = True if input_df.columns.size > 2 else False
 # checking 2
-has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum()>0 else False
+has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum() > 0 else False
     
 # if there is a third column, it must containt integers
 if has_more_columns:
@@ -149,18 +145,25 @@ if has_more_columns and has_repeated_edges: #it cannot be both
     raise ValueError('There cannot be repeated edges AND a 3rd column with edge multiplicities.')
 
 # remove nodes with small degree
-if degree_threshold > 0:
+degree_per_target = None
+if in_degree_threshold is not None:
     degree_per_target = input_df.groupby('target').count()
+
+degree_per_source = None
+if out_degree_threshold is not None:
+    degree_per_source = input_df.groupby('source').count()
+
+if degree_per_target is not None:
     if 'multiplicity' in degree_per_target.columns:
         degree_per_target.drop('multiplicity', axis = 1, inplace = True)
-    degree_per_target = degree_per_target[degree_per_target > degree_threshold].dropna().reset_index()
+    degree_per_target = degree_per_target[degree_per_target >= in_degree_threshold].dropna().reset_index()
     degree_per_target.drop('source', axis = 1, inplace = True)
     input_df = pd.merge(input_df, degree_per_target, on = ['target'], how = 'inner')
 
-    degree_per_source = input_df.groupby('source').count()
+if degree_per_source is not None:
     if 'multiplicity' in degree_per_source.columns:
         degree_per_source.drop('multiplicity', axis = 1, inplace = True)
-    degree_per_source = degree_per_source[degree_per_source > degree_threshold].dropna().reset_index()
+    degree_per_source = degree_per_source[degree_per_source >= out_degree_threshold].dropna().reset_index()
     degree_per_source.drop('target', axis = 1, inplace = True)
     input_df = pd.merge(input_df, degree_per_source, on = ['source'], how = 'inner')
 
