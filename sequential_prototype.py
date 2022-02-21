@@ -22,6 +22,9 @@ import prince
 
 # Foula : should we have two thresholds?
 degree_threshold = 2 # nodes that follow, or are followed by, less than this number, are taken out of the network
+
+# NOTE = degree threshold for in-degree and out-degree
+
 # number of CA components to keep
 n_components = 3
 
@@ -31,6 +34,12 @@ copy = True
 check_input = True
 engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca'
 random_state = None
+
+# file-reading parameters
+col_renaming = {'source':'follower_id','target':'twitter_id'} # default = None
+
+
+
 
 #########################
 #
@@ -120,6 +129,8 @@ input_df['target'] = input_df['target'].astype(str)
 # remove NAs
 input_df.dropna(subset = ['source', 'target'], inplace = True)
 
+# NOTE: There are some "nan" here using (bipartite_831MPs_4424402followers.csv). Maybe a NaN converted to nan when .astype(str) ? 
+
 # Is the graph a multigraph ?
 # There are two ways of being multigraph:
 # 1) because there is a third column of integers
@@ -128,7 +139,7 @@ input_df.dropna(subset = ['source', 'target'], inplace = True)
 # checking 1
 has_more_columns = True if input_df.columns.size > 2 else False
 # checking 2
-has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum() else False
+has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum()>0 else False
     
 # if there is a third column, it must containt integers
 if has_more_columns:
@@ -167,7 +178,7 @@ ntwrk_df = input_df[['source', 'target']]
 #print(ntwrk_df)
 n_i, r = ntwrk_df['target'].factorize()
 source_users_no_ = len(np.unique(n_i))
-column_ids_ = r.values
+column_ids_ = r.values 
 #print('Network columns: ', column_ids_)
 #print(source_users_no, len(n_i), len(r))
 n_j, c = ntwrk_df['source'].factorize()
@@ -178,13 +189,12 @@ row_ids_ = c.values
 #print(target_users_no, len(n_j), len(c))
 network_edge_no = len(n_i)
 n_in_j, tups = pd.factorize(list(zip(n_j, n_i)))
-ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups))))
+ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups)))) # COO might be faster 
 # TODO : add delayed sparse?
+# YES: if "engine" string is "delayedsparse" (or other thing that the users might have and that behaves exactly like delayedsparse) we want it to try to import it
 ntwrk_np = ntwrk_csr.toarray()
 #print(ntwrk_np.shape)
 #print(ntwrk_np)
-
-raise
 
 #########################
 #
