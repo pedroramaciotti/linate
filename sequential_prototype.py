@@ -1,4 +1,21 @@
-# standard libs
+# compute CA of a graph and re-embed to 
+
+default_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation
+
+#engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca' etc
+engine = 'linate_ds'
+
+# the user can specify the CA computation library to use
+from importlib import import_module
+
+ca_module_name = 'prince'
+if engine not in default_engines:
+    ca_module_name = engine
+
+try:
+    ca_module = import_module(ca_module_name)
+except ModuleNotFoundError:
+    raise ValueError(ca_module_name + ' module is not installed; please install and make it visible it if you want to use it')
 
 import os
 
@@ -9,10 +26,6 @@ from scipy.sparse import csr_matrix
 
 # viz libs
 #import matplotlib.pyplot as plt
-
-# CA libs
-import prince
-
 
 #########################
 #
@@ -30,8 +43,6 @@ n_components = 3
 n_iter = 10
 copy = True
 check_input = True
-#engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca'
-engine = 'sklearn'
 random_state = None
 
 # file-reading parameters
@@ -71,6 +82,7 @@ folder = '/home/foula/FoulaDatasetAttitudinalEmbedding/'
 path_to_network_data = os.path.join(folder, 'bipartite_831MPs_4424402followers.csv')
 
 output_folder = 'ca_results/'
+#output_folder = 'ca_results_ds/'
 
 # check network file exists
 if not os.path.isfile(path_to_network_data):
@@ -193,11 +205,10 @@ row_ids_ = c.values
 network_edge_no = len(n_i)
 n_in_j, tups = pd.factorize(list(zip(n_j, n_i)))
 ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups)))) # COO might be faster 
-# TODO : add delayed sparse?
-# YES: if "engine" string is "delayedsparse" (or other thing that the users might have and that behaves exactly like delayedsparse) we want it to try to import it
-ntwrk_np = ntwrk_csr.toarray()
-#print(ntwrk_np.shape)
-#print(ntwrk_np)
+
+if engine in default_engines:
+    ntwrk_np = ntwrk_csr.toarray()
+    #print(ntwrk_np.shape)
 
 #########################
 #
@@ -214,9 +225,15 @@ else:
         n_components = n_components_tmp
 
 print('Computing CA...')
-ca_model = prince.CA(n_components = n_components, n_iter = n_iter,
-        copy = copy, check_input = check_input, engine = engine, random_state = random_state)
-ca_model.fit(ntwrk_np)
+ca_class = getattr(ca_module, 'CA')
+
+if engine in default_engines:
+    ca_model = ca_class(n_components = n_components, n_iter = n_iter,
+            copy = copy, check_input = check_input, engine = engine, random_state = random_state)
+    ca_model.fit(ntwrk_np)
+else:
+    ca_model = ca_class(n_components = n_components)
+    ca_model.fit(ntwrk_csr)
 
 #########################
 #
@@ -231,7 +248,10 @@ print('Total inertia: ', total_inertia_)
 explained_inertia_ = ca_model.explained_inertia_ # list
 print('Explained inertia: ', explained_inertia_)
 
-ca_row_coordinates_ = ca_model.row_coordinates(ntwrk_np) # pandas data frame
+if engine in default_engines:
+    ca_row_coordinates_ = ca_model.row_coordinates(ntwrk_np) # pandas data frame
+else:
+    ca_row_coordinates_ = ca_model.row_coordinates() # pandas data frame
 column_names = ca_row_coordinates_.columns
 new_column_names = []
 for c in column_names:
@@ -242,7 +262,10 @@ ca_row_coordinates_.index.name = 'source ID'
 #print(ca_row_coordinates_)
 ca_row_coordinates_.to_csv(os.path.join(output_folder, 'ca_row_coordinates.csv'))
 
-ca_column_coordinates_ = ca_model.column_coordinates(ntwrk_np) # pandas data frame
+if engine in default_engines:
+    ca_column_coordinates_ = ca_model.column_coordinates(ntwrk_np) # pandas data frame
+else:
+    ca_column_coordinates_ = ca_model.column_coordinates() # pandas data frame
 column_names = ca_column_coordinates_.columns
 new_column_names = []
 for c in column_names:
