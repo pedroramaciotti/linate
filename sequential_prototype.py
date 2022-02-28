@@ -2,8 +2,8 @@
 
 default_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation
 
-#engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca' etc
-engine = 'linate_ds'
+engine = 'fbpca'    # 'auto' 'sklearn' 'fbpca' etc
+#engine = 'linate_ds'
 
 # the user can specify the CA computation library to use
 from importlib import import_module
@@ -282,8 +282,45 @@ ca_column_coordinates_.to_csv(os.path.join(output_folder, 'ca_column_coordinates
 #                      
 ###########################################################################
 
+path_attitudinal_reference_data = '/home/foula/FoulaDatasetAttitudinalEmbedding/groups_attitudinal_coordinates.csv'
 
+#attitudinal_reference_data_header_names = None # no header : first is group name, rest is dimensions in attitudinal space
+#attitudinal_reference_data_header_names = {'group' : 'party'} # must have a 'group' column and an optional 'dimensions' column
+attitudinal_reference_data_header_names = {'group' : 'party', 
+        'dimensions' : ['ches_eu_position', 'ches_eu_foreign', 'ches_protectionism']}
 
+# check if attitudinal reference data file exists
+
+if not os.path.isfile(path_attitudinal_reference_data):
+    raise ValueError('Attitudinal reference data file does not exist.')
+
+# handles files with or without header
+header_df = pd.read_csv(path_attitudinal_reference_data, nrows = 0)
+column_no = len(header_df.columns)
+if column_no < 2:
+    raise ValueError('Attitudinal reference data file has to have at least two columns.')
+
+if attitudinal_reference_data_header_names is not None:
+    if attitudinal_reference_data_header_names['group'] not in header_df.columns:
+        raise ValueError('Attitudinal reference data file has to have a ' + attitudinal_reference_data_header_names['group'] + ' column.')
+
+# load attitudinal reference data
+attitudinal_reference_data_df = None
+if attitudinal_reference_data_header_names is None:
+    attitudinal_reference_data_df = pd.read_csv(path_attitudinal_reference_data, header = None).rename(columns = {0:'group'})
+else:
+    attitudinal_reference_data_df = pd.read_csv(path_attitudinal_reference_data).rename(columns = {attitudinal_reference_data_header_names['group']:'group'})
+    if 'dimensions' in attitudinal_reference_data_header_names.keys():
+        cols = attitudinal_reference_data_header_names['dimensions'].copy()
+        cols.append('group')
+        attitudinal_reference_data_df = attitudinal_reference_data_df[cols]
+print(attitudinal_reference_data_df.shape)
+
+# exclude groups with a NaN in any of the dimensions (or group)
+attitudinal_reference_data_df.dropna(inplace = True)
+
+print(attitudinal_reference_data_df.shape)
+print(attitudinal_reference_data_df.head())
 
 #########################
 #
