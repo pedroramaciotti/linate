@@ -283,16 +283,22 @@ ca_column_coordinates_.to_csv(os.path.join(output_folder, 'ca_column_coordinates
 ###########################################################################
 
 #### input/parameters
+# whether the attitudinal data are given at the group or the node level
+group_attitudinal_reference_data_is_given = True
+#group_attitudinal_reference_data_is_given = False
+
 path_attitudinal_reference_data = '/home/foula/FoulaDatasetAttitudinalEmbedding/groups_attitudinal_coordinates.csv'
+#path_attitudinal_reference_data = '/home/foula/correspondence_analysis/linate_module/ca_results/generated_node_attitudinal_coordinates.csv'
 
 #attitudinal_reference_data_header_names = None # no header : first is group name, rest is dimensions in attitudinal space
-#attitudinal_reference_data_header_names = {'group' : 'party'} # must have a 'group' column and an optional 'dimensions' column
-attitudinal_reference_data_header_names = {'group' : 'party', 
+#attitudinal_reference_data_header_names = {'entity' : 'party'} # must have a 'entity' column and an optional 'dimensions' column
+# entity refers to group when group level attitudinal reference data is given and to node when node level attitudinal reference data is given
+attitudinal_reference_data_header_names = {'entity' : 'party', 
         'dimensions' : ['ches_eu_position', 'ches_eu_foreign', 'ches_protectionism']}
 
 # for node groups
-node_group_filename = 'ca_results/real_node_groups.csv'
-
+node_group_filename = 'ca_results/real_node_groups.csv'  # None if attirudinal reference data are given at the node level
+#
 #node_group_data_header_names = None # no header : first is node ID, second is group name
 node_group_data_header_names = {'group' : 'party', 'node_id' : 'twitter_id'} # must have a 'group' column and a 'node_id' column
 
@@ -332,64 +338,66 @@ if column_no < 2:
     raise ValueError('Attitudinal reference data file has to have at least two columns.')
 
 if attitudinal_reference_data_header_names is not None:
-    if attitudinal_reference_data_header_names['group'] not in header_df.columns:
+    if attitudinal_reference_data_header_names['entity'] not in header_df.columns:
         raise ValueError('Attitudinal reference data file has to have a ' 
-                + attitudinal_reference_data_header_names['group'] + ' column.')
+                + attitudinal_reference_data_header_names['entity'] + ' column.')
 
 # load attitudinal reference data
 attitudinal_reference_data_df = None
 if attitudinal_reference_data_header_names is None:
     attitudinal_reference_data_df = pd.read_csv(path_attitudinal_reference_data, 
-            header = None).rename(columns = {0:'group'})
+            header = None).rename(columns = {0:'entity'})
 else:
     attitudinal_reference_data_df = pd.read_csv(path_attitudinal_reference_data).rename(columns 
-            = {attitudinal_reference_data_header_names['group']:'group'})
+            = {attitudinal_reference_data_header_names['entity']:'entity'})
     if 'dimensions' in attitudinal_reference_data_header_names.keys():
         cols = attitudinal_reference_data_header_names['dimensions'].copy()
-        cols.append('group')
+        cols.append('entity')
         attitudinal_reference_data_df = attitudinal_reference_data_df[cols]
 #print(attitudinal_reference_data_df.shape)
 
 # exclude groups with a NaN in any of the dimensions (or group)
 attitudinal_reference_data_df.dropna(inplace = True)
+attitudinal_reference_data_df['entity'] = attitudinal_reference_data_df['entity'].astype(str)
 
 #print(attitudinal_reference_data_df.shape)
 #print(attitudinal_reference_data_df.head())
 
-# check if node group file exists
-if not os.path.isfile(node_group_filename):
-    raise ValueError('Node group data file does not exist.')
+if group_attitudinal_reference_data_is_given: # need to load node-group mapping
+    # check if node group file exists
+    if not os.path.isfile(node_group_filename):
+        raise ValueError('Node group data file does not exist.')
 
-# handles files with or without header
-header_df = pd.read_csv(node_group_filename, nrows = 0)
-column_no = len(header_df.columns)
-if column_no < 2:
-    raise ValueError('Node group data file has to have at least two columns.')
+    # handles node group files with or without header
+    header_df = pd.read_csv(node_group_filename, nrows = 0)
+    column_no = len(header_df.columns)
+    if column_no < 2:
+        raise ValueError('Node group data file has to have at least two columns.')
 
-if node_group_data_header_names is not None:
-    if node_group_data_header_names['group'] not in header_df.columns:
-        raise ValueError('Node group data file has to have a ' 
-                + node_group_data_header_names['group'] + ' column.')
+    if node_group_data_header_names is not None:
+        if node_group_data_header_names['group'] not in header_df.columns:
+            raise ValueError('Node group data file has to have a ' 
+                    + node_group_data_header_names['group'] + ' column.')
 
-    if node_group_data_header_names['node_id'] not in header_df.columns:
-        raise ValueError('Node group data file has to have a ' 
-                + node_group_data_header_names['node_id'] + ' column.')
+        if node_group_data_header_names['node_id'] not in header_df.columns: 
+            raise ValueError('Node group data file has to have a ' 
+                    + node_group_data_header_names['node_id'] + ' column.')
 
-# load node group data
-node_group_data_df = None
-if node_group_data_header_names is None:
-    node_group_data_df = pd.read_csv(node_group_filename, header 
-            = None).rename(columns = {0:'node_id', 1:'group'})
-else:
-    node_group_data_df = pd.read_csv(node_group_filename).rename(columns = 
-            {node_group_data_header_names['group']:'group',
-                node_group_data_header_names['node_id']:'node_id'})
+        # load node group data
+        node_group_data_df = None
+        if node_group_data_header_names is None:
+            node_group_data_df = pd.read_csv(node_group_filename, header 
+                    = None).rename(columns = {0:'node_id', 1:'group'})
+        else:
+            node_group_data_df = pd.read_csv(node_group_filename).rename(columns = 
+                    {node_group_data_header_names['group']:'group',
+                        node_group_data_header_names['node_id']:'node_id'})
 
-# exclude rows with a NaN in any of the columns
-node_group_data_df.dropna(inplace = True)
+        # exclude rows with a NaN in any of the columns
+        node_group_data_df.dropna(inplace = True)
 
-#print(node_group_data_df.shape)
-#print(node_group_data_df.head())
+        #print(node_group_data_df.shape)
+        #print(node_group_data_df.head())
 
 # check if node ca coordinates file exists
 if not os.path.isfile(node_ca_coordinates_filename):
@@ -418,25 +426,45 @@ else:
 #print(node_ca_coordinates_df.shape)
 #print(node_ca_coordinates_df.head())
 
-# add group information to the CA coordinates
-node_group_ca_coordinates_df = pd.merge(node_ca_coordinates_df, node_group_data_df, on = 'node_id')
-node_group_ca_coordinates_df.drop('node_id', axis = 1, inplace = True)
+entity_ca_coordinates_df = None # maintains CA coordinates at the group or node level
+if group_attitudinal_reference_data_is_given: # need to load node-group mapping
 
-# also keep only the groups that exist in the attitudinal reference data
-node_group_ca_coordinates_df = node_group_ca_coordinates_df[node_group_ca_coordinates_df['group'].isin(attitudinal_reference_data_df.group.unique())]
+    # add group information to the CA coordinates
+    node_group_ca_coordinates_df = pd.merge(node_ca_coordinates_df, node_group_data_df, on = 'node_id')
+    node_group_ca_coordinates_df.drop('node_id', axis = 1, inplace = True)
 
-#print(node_group_ca_coordinates_df.shape)
-#print(node_group_ca_coordinates_df.head())
+    # also keep only the groups that exist in the attitudinal reference data
+    node_group_ca_coordinates_df['group'] = node_group_ca_coordinates_df['group'].astype(str)
+    ga_merge_df = pd.merge(attitudinal_reference_data_df, node_group_ca_coordinates_df, 
+            left_on = 'entity', right_on = 'group', how = 'inner')
+    node_group_ca_coordinates_df = node_group_ca_coordinates_df[node_group_ca_coordinates_df['group'].
+            isin(ga_merge_df.group.unique())]
+    attitudinal_reference_data_df = attitudinal_reference_data_df[attitudinal_reference_data_df['entity'].
+            isin(ga_merge_df.entity.unique())]
 
-# create ca coordinates aggregates : user can define custom (columnwise) aggregate
-group_ca_coordinates_df = None
-if group_ca_agg_fun is None:
-    group_ca_coordinates_df = node_group_ca_coordinates_df.groupby(['group']).agg('mean').reset_index()
+    #print(node_group_ca_coordinates_df.shape)
+    #print(node_group_ca_coordinates_df.head())
+
+    # create ca coordinates aggregates : user can define custom (columnwise) aggregate
+    if group_ca_agg_fun is None:
+        entity_ca_coordinates_df = node_group_ca_coordinates_df.groupby(['group']).agg('mean').reset_index()
+    else:
+        entity_ca_coordinates_df = node_group_ca_coordinates_df.groupby(['group']).agg(group_ca_agg_fun).reset_index()
+    entity_ca_coordinates_df.rename(columns = {'group': 'entity'}, inplace = True)
+
 else:
-    group_ca_coordinates_df = node_group_ca_coordinates_df.groupby(['group']).agg(group_ca_agg_fun).reset_index()
+    node_ca_coordinates_df['node_id'] = node_ca_coordinates_df['node_id'].astype(str)
+    na_merge_df = pd.merge(attitudinal_reference_data_df, node_ca_coordinates_df, 
+            left_on = 'entity', right_on = 'node_id', how = 'inner')
+    node_ca_coordinates_df = node_ca_coordinates_df[node_ca_coordinates_df['node_id'].
+            isin(na_merge_df.node_id.unique())]
+    attitudinal_reference_data_df = attitudinal_reference_data_df[attitudinal_reference_data_df['entity'].
+            isin(na_merge_df.entity.unique())]
+    entity_ca_coordinates_df = node_ca_coordinates_df
+    entity_ca_coordinates_df.rename(columns = {'node_id': 'entity'}, inplace = True)
 
-#print(group_ca_coordinates_df.shape)
-#group_ca_coordinates_df.head(8)
+#print(entity_ca_coordinates_df.shape, attitudinal_reference_data_df.shape)
+#print(entity_ca_coordinates_df.head(8))
 
 #########################
 #
@@ -445,26 +473,26 @@ else:
 ###########################################################################
 
 # sort attitudinal reference data by group (so as to have the right mapping with ideological embeddings)
-attitudinal_reference_data_df = attitudinal_reference_data_df.sort_values('group', ascending = True)
+attitudinal_reference_data_df = attitudinal_reference_data_df.sort_values('entity', ascending = True)
 
 #print(attitudinal_reference_data_df.shape)
 #print(attitudinal_reference_data_df.head(8))
 
 # and convert to Y_tilda
-Y_df = attitudinal_reference_data_df.drop('group', axis = 1, inplace = False)
+Y_df = attitudinal_reference_data_df.drop('entity', axis = 1, inplace = False)
 Y_np = Y_df.to_numpy().T
 ones_np = np.ones((Y_np.shape[1],), dtype = float)
 Y_tilda_np = np.append(Y_np, [ones_np], axis= 0)
 #print(Y_np.shape, Y_tilda_np.shape)
 
 # sort ideological coordinates by group (so as to have the right mapping with attitudinal embeddings)
-group_ca_coordinates_df = group_ca_coordinates_df.sort_values('group', ascending = True)
+entity_ca_coordinates_df = entity_ca_coordinates_df.sort_values('entity', ascending = True)
 
 #print(group_ca_coordinates_df.shape)
 #print(group_ca_coordinates_df.head(8))
 
 # convert to X_tilda
-X_df = group_ca_coordinates_df.drop('group', axis = 1, inplace = False)
+X_df = entity_ca_coordinates_df.drop('entity', axis = 1, inplace = False)
 X_np = X_df.to_numpy()
 if N is None:
     N = X_np.shape[0] - 1
