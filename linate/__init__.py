@@ -1,5 +1,5 @@
-from .linate import LINATE
+from .ca import CA
 
 from .__version__ import __version__
 
-__all__ = ['LINATE', '__version__']
+__all__ = ['CA', '__version__']

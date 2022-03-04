@@ -1,4 +1,4 @@
-"""LINATE module 2: Correspondece Analsis + dimension matching"""
+"""LINATE module 1: Correspondece Analysis """
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import check_random_state
@@ -11,98 +11,159 @@ import numpy as np
 
 from scipy.sparse import csr_matrix
 
-import prince
+# the user can specify the CA computation library to use
+from importlib import import_module
 
-class LINATE(BaseEstimator, TransformerMixin): 
+class CA(BaseEstimator, TransformerMixin): 
 
-    def __init__(self, n_components = 2, out_degree_threshold = None, in_degree_threshold = None,
-            n_iter = 10, copy = True, check_input = True, random_state = None, target_col_name = 'target',
-            source_col_name = 'source', multiplicity_col_name = 'multiplicity', engine = 'auto'):
+    default_ca_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation
+
+    def __init__(self, n_components = 2, n_iter = 10, copy = True, check_input = True, random_state = None,
+            engine = 'auto', in_degree_threshold = None, out_degree_threshold = None):
 
         self.random_state = random_state
-        self.n_components = n_components
-        self.n_iter = n_iter
-        self.copy = copy
-        self.check_input = check_input
+
+        self.check_input = check_input    # sklearn valid input check
+        self.copy = copy                  # make a copy of the array
+
+        self.n_components = n_components    # number of CA coordinates
+        self.n_iter = n_iter                # number of iteration in SVD computation
+
         self.engine = engine 
-        self.out_degree_threshold = out_degree_threshold
-        self.in_degree_threshold = in_degree_threshold
-        self.source_col_name = source_col_name
-        self.target_col_name = target_col_name
-        self.multiplicity_col_name = multiplicity_col_name
+        print('Using CA engine:', self.engine)
+        self.ca_module_name = 'prince'
+        if self.engine not in self.default_ca_engines:
+            self.ca_module_name = self.engine
+
+        try:
+            self.ca_module = import_module(self.ca_module_name)
+        except ModuleNotFoundError:
+            raise ValueError(self.ca_module_name 
+                    + ' module is not installed; please install and make it visible if you want to use it')
+
+        self.in_degree_threshold = in_degree_threshold # nodes that are followed by less than this number
+                                                       # (in the original graph) are taken out of the network
+        self.out_degree_threshold = out_degree_threshold # nodes that follow less than this number
+                                                       # (in the original graph) are taken out of the network
 
     def fit(self, X, y = None):
-        #self.random_state_ = check_random_state(self.random_state)
+        return self
 
-        # load data 
-        if not isinstance(X, str):
-            raise TypeError('X should be of type string...')
+    def load_input_from_file(self, path_to_network_data, network_file_header_names = None):
 
-        if not os.path.exists(X):
-            raise BaseException('Twitter network file does not exist...') 
+        # check that a network file is provided
+        if path_to_network_data is None:
+            raise ValueError('Network file name is not provided.')
 
-        in_nd_thrshold = self.in_degree_threshold
-        if in_nd_thrshold is None:
-            in_nd_thrshold = 0
-        out_nd_thrshold = self.out_degree_threshold
-        if out_nd_thrshold is None:
-            out_nd_thrshold = 0
+        # check network file exists
+        if not os.path.isfile(path_to_network_data):
+            raise ValueError('Network file does not exist.')
 
-        ntwrk_df = pd.read_csv(X)
-        if len(ntwrk_df.columns) < 2:
-            raise BaseException('Twitter network file should have at least a \'source\' and \'target\' attribute') 
-        if (ntwrk_df.columns[0] != self.target_col_name) and (ntwrk_df.columns[1] != self.target_col_name):
-            raise BaseException('Twitter network file one of first two columns should be the \'target\' attribute') 
-        if (ntwrk_df.columns[0] != self.source_col_name) and (ntwrk_df.columns[1] != self.source_col_name):
-            raise BaseException('Twitter network file one of first two columns should be the \'source\' attribute') 
-        ntwrk_df.dropna(subset = [self.target_col_name, self.source_col_name], inplace = True)
+        # handles files with or without header
+        header_df = pd.read_csv(path_to_network_data, nrows = 0)
+        column_no = len(header_df.columns)
+        if column_no < 2:
+            raise ValueError('Network file has to have at least two columns.')
 
-        #print(ntwrk_df.shape)
-        if in_nd_thrshold > 0:
-            degree_per_target = ntwrk_df.groupby(self.target_col_name).count()
-            if self.multiplicity_col_name in degree_per_target.columns:
-                degree_per_target.drop(self.multiplicity_col_name, axis = 1, inplace = True)
-            degree_per_target = degree_per_target[degree_per_target > in_nd_thrshold].dropna().reset_index()
-            degree_per_target.drop(self.source_col_name, axis = 1, inplace = True)
-            ntwrk_df = pd.merge(ntwrk_df, degree_per_target, on = [self.target_col_name], how = 'inner')
-        #print(ntwrk_df.shape)
+        # sanity checks in header
+        if network_file_header_names is not None:
+            if network_file_header_names['source'] not in header_df.columns:
+                raise ValueError('Network file has to have a ' + network_file_header_names['source'] + ' column.')
+            if network_file_header_names['target'] not in header_df.columns:
+                raise ValueError('Network file has to have a ' + network_file_header_names['target'] + ' column.')
 
-        if out_nd_thrshold > 0:
-            degree_per_source = ntwrk_df.groupby(self.source_col_name).count()
-            if self.multiplicity_col_name in degree_per_source.columns:
-                degree_per_source.drop(self.multiplicity_col_name, axis = 1, inplace = True)
-            degree_per_source = degree_per_source[degree_per_source > out_nd_thrshold].dropna().reset_index()
-            degree_per_source.drop(self.target_col_name, axis = 1, inplace = True)
-            ntwrk_df = pd.merge(ntwrk_df, degree_per_source, on = [self.source_col_name], how = 'inner') 
+        # load network data
+        input_df = None
+        if network_file_header_names is None:
+            if column_no == 2:
+                input_df = pd.read_csv(path_to_network_data, header = None,
+                        dtype = {0:str, 1:str}).rename(columns = {0:'source', 1:'target'})
+            else:
+                input_df = pd.read_csv(path_to_network_data, header = None,
+                        dtype = {0:str, 1:str}).rename(columns = {0:'source', 1:'target', 2:'multiplicity'})
+        else:
+            input_df = pd.read_csv(path_to_network_data, dtype = {network_file_header_names['source']:str,
+                network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
+                    network_file_header_names['target']:'target'})
 
-        # TODO: what should we be doing witht he multiplicity column?
-        ntwrk_df.drop(self.multiplicity_col_name, axis = 1, inplace = True)
-        #print(ntwrk_df.shape)
+        input_df = self.__check_input_and_convert_to_matrix(input_df)
 
-        n_i, r = ntwrk_df[self.source_col_name].factorize()
-        self.source_users_no_ = len(np.unique(n_i))
+        return(input_df)
+
+    def __check_input_and_convert_to_matrix(self, input_df):
+
+        # first perform validity checks over the input 
+        if not isinstance(input_df, pd.DataFrame):
+            raise ValueError('Input should be a pandas dataframe.')
+
+        if 'source' not in input_df.columns:
+            raise ValueError('Input dataframe should have a source column.')
+
+        if 'target' not in input_df.columns:
+            raise ValueError('Input dataframe should have a target column.')
+
+        # remove NAs from input data
+        input_df.dropna(subset = ['source', 'target'], inplace = True)
+
+        # convert to 'str'
+        input_df['source'] = input_df['source'].astype(str)
+        input_df['target'] = input_df['target'].astype(str)
+
+        # the file should either half repeated edges or a multiplicity column but not both
+        has_more_columns = True if input_df.columns.size > 2 else False
+        has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum() > 0 else False
+        if has_more_columns and has_repeated_edges:
+            raise ValueError('There cannot be repeated edges AND a 3rd column with edge multiplicities.')
+
+        # if there is a third column, it must containt integers
+        if has_more_columns:
+            if 'multiplicity' not in input_df.columns:
+                raise ValueError('Input dataframe should have a multiplicity column.')
+            input_df['multiplicity'] = input_df['multiplicity'].astype(int) # will fail if missing element, or cannot convert
+
+        # remove nodes with small degree if needed
+        degree_per_target = None
+        if self.in_degree_threshold is not None:
+            degree_per_target = input_df.groupby('target').count()
+
+        degree_per_source = None
+        if self.out_degree_threshold is not None:
+            degree_per_source = input_df.groupby('source').count()
+
+        if degree_per_target is not None:
+            if 'multiplicity' in degree_per_target.columns:
+                degree_per_target.drop('multiplicity', axis = 1, inplace = True)
+            degree_per_target = degree_per_target[degree_per_target >= self.in_degree_threshold].dropna().reset_index()
+            degree_per_target.drop('source', axis = 1, inplace = True)
+            input_df = pd.merge(input_df, degree_per_target, on = ['target'], how = 'inner')
+
+        if degree_per_source is not None:
+            if 'multiplicity' in degree_per_source.columns:
+                degree_per_source.drop('multiplicity', axis = 1, inplace = True)
+            degree_per_source = degree_per_source[degree_per_source >= self.out_degree_threshold].dropna().reset_index()
+            degree_per_source.drop('target', axis = 1, inplace = True)
+            input_df = pd.merge(input_df, degree_per_source, on = ['source'], how = 'inner')
+
+        # checking if final network is bipartite:
+        self.is_bipartite_ = np.intersect1d(input_df['source'], input_df['target']).size == 0
+        print('Bipartite graph: ', self.is_bipartite_)
+
+        # and then assemble the matrices to be fed to CA
+        ntwrk_df = input_df[['source', 'target']]
+
+        n_i, r = ntwrk_df['target'].factorize()
+        source_users_no_ = len(np.unique(n_i))
         self.column_ids_ = r.values
-        #print(source_users_no, len(n_i), len(r))
-        n_j, c = ntwrk_df[self.target_col_name].factorize()
+        n_j, c = ntwrk_df['source'].factorize()
         assert len(n_i) == len(n_j)
-        self.target_users_no_ = len(np.unique(n_j))
+        target_users_no_ = len(np.unique(n_j))
         self.row_ids_ = c.values
-        #print(target_users_no, len(n_j), len(c))
         network_edge_no = len(n_i)
         n_in_j, tups = pd.factorize(list(zip(n_j, n_i)))
-        ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups))))
-        # TODO : add delayed sparse?
-        ntwrk_np = ntwrk_csr.toarray()
-        #print(ntwrk_np.shape)
+        ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups)))) # COO might be faster
 
-        ca_model = ca_randomized = prince.CA(n_components = self.n_components, n_iter = self.n_iter,
-                copy = self.copy, check_input = self.check_input, engine = self.engine, random_state = self.random_state)
-        ca_model.fit(ntwrk_np)
+        if self.engine in self.default_ca_engines:
+            ntwrk_np = ntwrk_csr.toarray()
+            return (ntwrk_np)
 
-        self.ca_row_coordinates_ = ca_model.row_coordinates(ntwrk_np) # pandas data frame
-        self.ca_column_coordinates_ = ca_model.column_coordinates(ntwrk_np) # pandas data frame
-        self.eigenvalues_ = ca_model.eigenvalues_  # list
-        self.total_inertia_ = ca_model.total_inertia_  # numpy.float64
-        self.explained_inertia_ = ca_model.explained_inertia_ # list
-
-        return self
+        return (ntwrk_csr)
