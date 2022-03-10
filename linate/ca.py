@@ -9,37 +9,29 @@ import pandas as pd
 
 import numpy as np
 
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse
 
 # the user can specify the CA computation library to use
 from importlib import import_module
+
+from sklearn import utils
 
 class CA(BaseEstimator, TransformerMixin): 
 
     default_ca_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation
 
-    def __init__(self, n_components = 2, n_iter = 10, copy = True, check_input = True, random_state = None,
+    def __init__(self, n_components = 2, n_iter = 10, check_input = True, random_state = None,
             engine = 'auto', in_degree_threshold = None, out_degree_threshold = None):
 
         self.random_state = random_state
 
         self.check_input = check_input    # sklearn valid input check
-        self.copy = copy                  # make a copy of the array
 
         self.n_components = n_components    # number of CA coordinates
         self.n_iter = n_iter                # number of iteration in SVD computation
 
         self.engine = engine 
         print('Using CA engine:', self.engine)
-        self.ca_module_name = 'prince'
-        if self.engine not in self.default_ca_engines:
-            self.ca_module_name = self.engine
-
-        try:
-            self.ca_module = import_module(self.ca_module_name)
-        except ModuleNotFoundError:
-            raise ValueError(self.ca_module_name 
-                    + ' module is not installed; please install and make it visible if you want to use it')
 
         self.in_degree_threshold = in_degree_threshold # nodes that are followed by less than this number
                                                        # (in the original graph) are taken out of the network
@@ -47,7 +39,121 @@ class CA(BaseEstimator, TransformerMixin):
                                                        # (in the original graph) are taken out of the network
 
     def fit(self, X, y = None):
+        # first try to load engine module
+        self.ca_module_name = 'prince'
+        if self.engine not in self.default_ca_engines:
+            self.ca_module_name = self.engine
+        #
+        try:
+            self.ca_module = import_module(self.ca_module_name)
+        except ModuleNotFoundError:
+            raise ValueError(self.ca_module_name 
+                    + ' module is not installed; please install and make it visible if you want to use it')
+
+        if isinstance(X, pd.DataFrame):
+            X = self.__check_input_and_convert_to_matrix(X)
+
+        # check input
+        if self.check_input:
+            utils.check_array(X, accept_sparse = True)
+
+        # set source and targer user numbers
+        if issparse(X):
+            self.source_users_no_ = X.get_shape()[0]
+            self.target_users_no_ = X.get_shape()[1]
+        else:
+            self.source_users_no_ = X.shape[0]
+            self.target_users_no_ = X.shape[1]
+
+        # and generate row and column IDs if needed
+        try:
+            l = len(self.column_ids_)
+        except AttributeError:
+            self.column_ids_ = np.empty(self.target_users_no_, dtype = object)
+            for indx in range(self.target_users_no_):
+                self.column_ids_[indx] = 'target_' + str(indx)
+            self.row_ids_ = np.empty(self.source_users_no_, dtype = object)
+            for indx in range(self.source_users_no_):
+                self.row_ids_[indx] = 'source_' + str(indx)
+
+        # compute number of CA components to keep
+        n_components_tmp = self.source_users_no_
+        if n_components_tmp > self.target_users_no_:
+            n_components_tmp = self.target_users_no_
+        if self.n_components < 0:
+            self.n_components = n_components_tmp
+        else:
+            if self.n_components > n_components_tmp:
+                self.n_components = n_components_tmp
+
+        # compute CA of a (sparse) matrix
+        print('Computing CA...')
+        ca_class = getattr(self.ca_module, 'CA')
+        ca_model = None
+        if self.engine in self.default_ca_engines:
+            ca_model = ca_class(n_components = self.n_components, n_iter = self.n_iter,
+                    check_input = False, engine = self.engine, random_state = self.random_state)
+            ca_model.fit(X)
+        else:
+            ca_model = ca_class(n_components = self.n_components)
+            ca_model.fit(X)
+
+        # finally construct the results
+        if self.engine in self.default_ca_engines:
+            self.ca_source_coordinates_ = ca_model.row_coordinates(X)
+        else:
+            self.ca_source_coordinates_ = ca_model.row_coordinates()
+        #print(self.ca_source_coordinates_)
+
+        column_names = self.ca_source_coordinates_.columns
+        new_column_names = []
+        for c in column_names:
+            new_column_names.append('ca_component_' + str(c))
+        self.ca_source_coordinates_.columns = new_column_names
+        self.ca_source_coordinates_.index = self.row_ids_
+        self.ca_source_coordinates_.index.name = 'source ID'
+        #self.ca_source_coordinates_.reset_index(inplace = True)
+        #print(self.ca_source_coordinates_)
+
+        if self.engine in self.default_ca_engines:
+            self.ca_target_coordinates_ = ca_model.column_coordinates(X)
+        else:
+            self.ca_target_coordinates_ = ca_model.column_coordinates()
+
+        column_names = self.ca_target_coordinates_.columns
+        new_column_names = []
+        for c in column_names:
+            new_column_names.append('ca_component_' + str(c))
+        self.ca_target_coordinates_.columns = new_column_names
+        self.ca_target_coordinates_.index = self.column_ids_
+        self.ca_target_coordinates_.index.name = 'target ID'
+        #print(self.ca_target_coordinates_)
+
+        eigenvalues_ = ca_model.eigenvalues_  # list
+        print('Eigenvalues: ', eigenvalues_)
+        total_inertia_ = ca_model.total_inertia_  # numpy.float64 or None
+        print('Total inertia: ', total_inertia_)
+        explained_inertia_ = ca_model.explained_inertia_ # list or None
+        print('Explained inertia: ', explained_inertia_)
+
         return self
+
+    def get_params(self, deep = True):
+        return {'random_state': self.random_state, 
+                'check_input': self.check_input,
+                'n_components': self.n_components,
+                'n_iter': self.n_iter,
+                'engine': self.engine,
+                'in_degree_threshold': self.in_degree_threshold,
+                'out_degree_threshold': self.out_degree_threshold}
+
+    def set_params(self, **parameters):
+        for parameter, value in parameters.items():
+            setattr(self,parameter, value)
+        return self
+
+    def score(self, X, y):
+        return 1
 
     def load_input_from_file(self, path_to_network_data, network_file_header_names = None):
 
@@ -86,9 +192,21 @@ class CA(BaseEstimator, TransformerMixin):
                 network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
                     network_file_header_names['target']:'target'})
 
-        input_df = self.__check_input_and_convert_to_matrix(input_df)
+        input_df = self.__check_input_and_convert_to_matrix(input_df) 
 
         return(input_df)
+
+    def save_ca_source_coordinates(self, path_to_ca_source_coordinates_file):
+        try:
+            self.ca_source_coordinates_.to_csv(path_to_ca_source_coordinates_file)
+        except AttributeError:
+            raise AttributeError('Source CA coordinates have not been computed.')
+
+    def save_ca_target_coordinates(self, path_to_ca_target_coordinates_file):
+        try:
+            self.ca_target_coordinates_.to_csv(path_to_ca_target_coordinates_file)
+        except AttributeError:
+            raise AttributeError('Target CA coordinates have not been computed.')
 
     def __check_input_and_convert_to_matrix(self, input_df):
 
@@ -109,7 +227,7 @@ class CA(BaseEstimator, TransformerMixin):
         input_df['source'] = input_df['source'].astype(str)
         input_df['target'] = input_df['target'].astype(str)
 
-        # the file should either half repeated edges or a multiplicity column but not both
+        # the file should either have repeated edges or a multiplicity column but not both
         has_more_columns = True if input_df.columns.size > 2 else False
         has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum() > 0 else False
         if has_more_columns and has_repeated_edges:
@@ -152,15 +270,16 @@ class CA(BaseEstimator, TransformerMixin):
         ntwrk_df = input_df[['source', 'target']]
 
         n_i, r = ntwrk_df['target'].factorize()
-        source_users_no_ = len(np.unique(n_i))
-        self.column_ids_ = r.values
+        #self.target_users_no_ = len(np.unique(n_i))
+        self.column_ids_ = r.values 
         n_j, c = ntwrk_df['source'].factorize()
         assert len(n_i) == len(n_j)
-        target_users_no_ = len(np.unique(n_j))
+        #self.source_users_no_ = len(np.unique(n_j))
         self.row_ids_ = c.values
         network_edge_no = len(n_i)
         n_in_j, tups = pd.factorize(list(zip(n_j, n_i)))
         ntwrk_csr = csr_matrix((np.bincount(n_in_j), tuple(zip(*tups)))) # COO might be faster
+        #print('shape', ntwrk_csr.get_shape())
 
         if self.engine in self.default_ca_engines:
             ntwrk_np = ntwrk_csr.toarray()
