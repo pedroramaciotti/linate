@@ -39,6 +39,7 @@ class CA(BaseEstimator, TransformerMixin):
                                                        # (in the original graph) are taken out of the network
 
     def fit(self, X, y = None):
+
         # first try to load engine module
         self.ca_module_name = 'prince'
         if self.engine not in self.default_ca_engines:
@@ -81,28 +82,39 @@ class CA(BaseEstimator, TransformerMixin):
         if n_components_tmp > self.target_users_no_:
             n_components_tmp = self.target_users_no_
         if self.n_components < 0:
-            self.n_components = n_components_tmp
+            self.employed_n_components = n_components_tmp
         else:
             if self.n_components > n_components_tmp:
-                self.n_components = n_components_tmp
+                self.employed_n_components = n_components_tmp
+            else:
+                self.employed_n_components = self.n_components
+
+        #if np.isnan(X).any():
+        #    return (self)
+        
+        #try:
+        #    if np.isfinite(X).any():
+        #        return (self)
+        #except TypeError:
+        #    return (self)
 
         # compute CA of a (sparse) matrix
         print('Computing CA...')
         ca_class = getattr(self.ca_module, 'CA')
-        ca_model = None
+        self.ca_model = None
         if self.engine in self.default_ca_engines:
-            ca_model = ca_class(n_components = self.n_components, n_iter = self.n_iter,
+            self.ca_model = ca_class(n_components = self.employed_n_components, n_iter = self.n_iter,
                     check_input = False, engine = self.engine, random_state = self.random_state)
-            ca_model.fit(X)
+            self.ca_model.fit(X)
         else:
-            ca_model = ca_class(n_components = self.n_components)
-            ca_model.fit(X)
+            self.ca_model = ca_class(n_components = self.employed_n_components)
+            self.ca_model.fit(X)
 
         # finally construct the results
         if self.engine in self.default_ca_engines:
-            self.ca_source_coordinates_ = ca_model.row_coordinates(X)
+            self.ca_source_coordinates_ = self.ca_model.row_coordinates(X)
         else:
-            self.ca_source_coordinates_ = ca_model.row_coordinates()
+            self.ca_source_coordinates_ = self.ca_model.row_coordinates()
         #print(self.ca_source_coordinates_)
 
         column_names = self.ca_source_coordinates_.columns
@@ -116,9 +128,9 @@ class CA(BaseEstimator, TransformerMixin):
         #print(self.ca_source_coordinates_)
 
         if self.engine in self.default_ca_engines:
-            self.ca_target_coordinates_ = ca_model.column_coordinates(X)
+            self.ca_target_coordinates_ = self.ca_model.column_coordinates(X)
         else:
-            self.ca_target_coordinates_ = ca_model.column_coordinates()
+            self.ca_target_coordinates_ = self.ca_model.column_coordinates()
 
         column_names = self.ca_target_coordinates_.columns
         new_column_names = []
@@ -129,14 +141,17 @@ class CA(BaseEstimator, TransformerMixin):
         self.ca_target_coordinates_.index.name = 'target ID'
         #print(self.ca_target_coordinates_)
 
-        eigenvalues_ = ca_model.eigenvalues_  # list
-        print('Eigenvalues: ', eigenvalues_)
-        total_inertia_ = ca_model.total_inertia_  # numpy.float64 or None
-        print('Total inertia: ', total_inertia_)
-        explained_inertia_ = ca_model.explained_inertia_ # list or None
-        print('Explained inertia: ', explained_inertia_)
+        self.eigenvalues_ = self.ca_model.eigenvalues_  # list
+        #print('Eigenvalues: ', eigenvalues_)
+        self.candidate_total_inertia_ = self.ca_model.total_inertia_  # numpy.float64 or None
+        #print('Total inertia: ', total_inertia_)
+        self.candidate_explained_inertia_ = self.ca_model.explained_inertia_ # list or None
+        #print('Explained inertia: ', explained_inertia_)
 
         return self
+
+    def transform(self, X):
+        return (X)
 
     def get_params(self, deep = True):
         return {'random_state': self.random_state, 
@@ -207,6 +222,28 @@ class CA(BaseEstimator, TransformerMixin):
             self.ca_target_coordinates_.to_csv(path_to_ca_target_coordinates_file)
         except AttributeError:
             raise AttributeError('Target CA coordinates have not been computed.')
+
+    @property
+    def total_inertia_(self):
+        try:
+            if self.engine in self.default_ca_engines:
+                return (self.candidate_total_inertia_)
+
+            self.candidate_total_inertia_ = self.ca_model.get_total_inertia()
+            return (self.candidate_total_inertia_)
+        except AttributeError:
+            raise AttributeError('CA model has not been fitted.')
+
+    @property
+    def explained_inertia_(self):
+        try:
+            if self.engine in self.default_ca_engines:
+                return (self.candidate_explained_inertia_)
+
+            self.candidate_total_inertia_ = self.ca_model.get_explained_inertia()
+            return (self.candidate_total_inertia_)
+        except AttributeError:
+            raise AttributeError('CA model has not been fitted.')
 
     def __check_input_and_convert_to_matrix(self, input_df):
 
