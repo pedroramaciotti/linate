@@ -1,4 +1,4 @@
-from .ca import CA
+from .linate_ds import CA
 
 from .__version__ import __version__
 
