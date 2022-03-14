@@ -10,6 +10,9 @@ Language-Independent Network Attitudinal Embedding
 ### Ideological Embedding
 
 
+Input is a csv file with 
+
+
 ### Attitudinal Embedding
 
 
