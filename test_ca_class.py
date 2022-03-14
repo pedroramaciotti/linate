@@ -6,9 +6,11 @@ from linate import CA
 
 def main():
     #ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, out_degree_threshold = 2)
-    ca_model = CA(n_components = 5, engine = 'linate_ds', in_degree_threshold = 0, out_degree_threshold = 3, standardize_mean=True, standardize_std=False)
+    ca_model = CA(n_components = 5, engine = 'linate_ds', in_degree_threshold = 0, out_degree_threshold = 3, standardize_mean=True, standardize_std=False, force_bipartite=False)
     #network_file_header_names = {'source':'source', 'target':'target1'}
     
+
+    # COMMENT: if force_bipartite=True, source nodes that are also target nodes should be eliminated from the list of sources
 
     # This is the original example
     network_file_header_names = None
@@ -31,6 +33,10 @@ def main():
     # Retrieving the coordinates in program
     target_coords = ca_model.ca_target_coordinates_
     source_coords = ca_model.ca_source_coordinates_
+
+    # Check the number of source and target nodes
+    ca_model.target_users_no_
+    ca_model.source_users_no_
 
     #
     print('eigenvalues', ca_model.eigenvalues_)
