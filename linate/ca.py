@@ -1,7 +1,6 @@
 """LINATE module 1: Correspondece Analysis """
 
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import check_random_state
 
 import os.path
 
