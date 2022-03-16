@@ -20,7 +20,8 @@ class CA(BaseEstimator, TransformerMixin):
     default_ca_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation
 
     def __init__(self, n_components = 2, n_iter = 10, check_input = True, random_state = None,
-            engine = 'auto', in_degree_threshold = None, out_degree_threshold = None):
+            engine = 'auto', in_degree_threshold = None, out_degree_threshold = None,
+            force_bipartite = False):
 
         self.random_state = random_state
 
@@ -36,6 +37,8 @@ class CA(BaseEstimator, TransformerMixin):
                                                        # (in the original graph) are taken out of the network
         self.out_degree_threshold = out_degree_threshold # nodes that follow less than this number
                                                        # (in the original graph) are taken out of the network
+
+        self.force_bipartite = force_bipartite
 
     def fit(self, X, y = None):
 
@@ -159,7 +162,8 @@ class CA(BaseEstimator, TransformerMixin):
                 'n_iter': self.n_iter,
                 'engine': self.engine,
                 'in_degree_threshold': self.in_degree_threshold,
-                'out_degree_threshold': self.out_degree_threshold}
+                'out_degree_threshold': self.out_degree_threshold,
+                'force_bipartite': self.force_bipartite}
 
     def set_params(self, **parameters):
         for parameter, value in parameters.items():
@@ -299,7 +303,12 @@ class CA(BaseEstimator, TransformerMixin):
             input_df = pd.merge(input_df, degree_per_source, on = ['source'], how = 'inner')
 
         # checking if final network is bipartite:
-        self.is_bipartite_ = np.intersect1d(input_df['source'], input_df['target']).size == 0
+        common_nodes_np = np.intersect1d(input_df['source'], input_df['target'])
+        self.is_bipartite_ = common_nodes_np.size == 0
+        if not self.is_bipartite_:
+            if self.force_bipartite:
+                input_df = input_df[~input_df['source'].isin(common_nodes_np)]
+                self.is_bipartite_ = np.intersect1d(input_df['source'], input_df['target']).size == 0
         print('Bipartite graph: ', self.is_bipartite_)
 
         # and then assemble the matrices to be fed to CA
