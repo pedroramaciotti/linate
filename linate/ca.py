@@ -1,6 +1,7 @@
 """LINATE module 1: Correspondece Analysis """
 
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.preprocessing import StandardScaler
 
 import os.path
 
@@ -21,7 +22,7 @@ class CA(BaseEstimator, TransformerMixin):
 
     def __init__(self, n_components = 2, n_iter = 10, check_input = True, random_state = None,
             engine = 'auto', in_degree_threshold = None, out_degree_threshold = None,
-            force_bipartite = False):
+            force_bipartite = False, standardize_mean = True, standardize_std = False,):
 
         self.random_state = random_state
 
@@ -39,6 +40,8 @@ class CA(BaseEstimator, TransformerMixin):
                                                        # (in the original graph) are taken out of the network
 
         self.force_bipartite = force_bipartite
+        self.standardize_mean = standardize_mean
+        self.standardize_std = standardize_std
 
     def fit(self, X, y = None):
 
@@ -150,6 +153,23 @@ class CA(BaseEstimator, TransformerMixin):
         self.candidate_explained_inertia_ = self.ca_model.explained_inertia_ # list or None
         #print('Explained inertia: ', explained_inertia_)
 
+        if self.standardize_mean:
+            std_scaler = StandardScaler(with_mean = self.standardize_mean, with_std = self.standardize_std)
+            std_scaler.fit(pd.concat([self.ca_source_coordinates_, self.ca_target_coordinates_], axis = 0))
+
+            cols = new_column_names
+
+            self.ca_scaled_source_coordinates_ = pd.DataFrame(columns = cols,
+                    data = std_scaler.transform(self.ca_source_coordinates_))
+            self.ca_scaled_source_coordinates_.index = self.row_ids_
+            self.ca_scaled_source_coordinates_.index.name = 'source ID'
+
+
+            self.ca_scaled_target_coordinates_ = pd.DataFrame(columns = cols,
+                    data = std_scaler.transform(self.ca_target_coordinates_))
+            self.ca_scaled_target_coordinates_.index = self.column_ids_
+            self.ca_scaled_target_coordinates_.index.name = 'target ID'
+
         return self
 
     def transform(self, X):
@@ -163,7 +183,9 @@ class CA(BaseEstimator, TransformerMixin):
                 'engine': self.engine,
                 'in_degree_threshold': self.in_degree_threshold,
                 'out_degree_threshold': self.out_degree_threshold,
-                'force_bipartite': self.force_bipartite}
+                'force_bipartite': self.force_bipartite,
+                'standardize_mean': self.standardize_mean,
+                'standardize_std': self.standardize_std}
 
     def set_params(self, **parameters):
         for parameter, value in parameters.items():
@@ -220,11 +242,23 @@ class CA(BaseEstimator, TransformerMixin):
         except AttributeError:
             raise AttributeError('Source CA coordinates have not been computed.')
 
+    def save_ca_scaled_source_coordinates(self, path_to_ca_source_coordinates_file):
+        try:
+            self.ca_scaled_source_coordinates_.to_csv(path_to_ca_source_coordinates_file)
+        except AttributeError:
+            raise AttributeError('Scaled source CA coordinates have not been computed.')
+
     def save_ca_target_coordinates(self, path_to_ca_target_coordinates_file):
         try:
             self.ca_target_coordinates_.to_csv(path_to_ca_target_coordinates_file)
         except AttributeError:
             raise AttributeError('Target CA coordinates have not been computed.')
+
+    def save_ca_scaled_target_coordinates(self, path_to_ca_target_coordinates_file):
+        try:
+            self.ca_scaled_target_coordinates_.to_csv(path_to_ca_target_coordinates_file)
+        except AttributeError:
+            raise AttributeError('Scaled target CA coordinates have not been computed.')
 
     @property
     def total_inertia_(self):
