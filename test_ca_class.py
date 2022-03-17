@@ -5,22 +5,24 @@
 from linate import CA
 
 def main():
-    #ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, out_degree_threshold = 2)
-    ca_model = CA(n_components = 5, engine = 'linate_ds', in_degree_threshold = 0, out_degree_threshold = 3, standardize_mean=True, standardize_std=False, force_bipartite=False)
-    #network_file_header_names = {'source':'source', 'target':'target1'}
+    ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, 
+                                                        out_degree_threshold = 2, force_bipartite = False)
+    #ca_model = CA(n_components = 5, engine = 'linate_ds', in_degree_threshold = 0, out_degree_threshold = 3, standardize_mean=True, standardize_std=False, force_bipartite=False)
     
 
     # COMMENT: if force_bipartite=True, source nodes that are also target nodes should be eliminated from the list of sources
 
     # This is the original example
+    #network_file_header_names = {'source':'source', 'target':'target'}
     network_file_header_names = None
     X = ca_model.load_input_from_file('/home/foula/FoulaDatasetAttitudinalEmbedding/bipartite_831MPs_4424402followers.csv',
             network_file_header_names = network_file_header_names)
+    #X = ca_model.load_input_from_file('data/twitter_networks/test_graph_A.csv',
+    #X = ca_model.load_input_from_file('data/twitter_networks/test_graph_B.csv',
 
     # Example loading the "RawData" filder examples
-    network_file_header_names = None
-    X = ca_model.load_input_from_file('Australia_20201027_MPs_followers_tids.csv',
-            network_file_header_names = {'source':'followers_id', 'target':'twitter_id'})
+    #X = ca_model.load_input_from_file('Australia_20201027_MPs_followers_tids.csv',
+     #       network_file_header_names = {'source':'followers_id', 'target':'twitter_id'})
 
     # Fitting
     ca_model.fit(X)
