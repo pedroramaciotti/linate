@@ -16,6 +16,11 @@ from importlib import import_module
 
 from sklearn import utils
 
+
+# Note from 18th March meeting:
+# Naming: change name from "n_components" to "n_latent_dimension"
+# Naming: change name from "ca_component" to "latent_dimension": "latent_dimension_1", etc etc etc
+
 class CA(BaseEstimator, TransformerMixin): 
 
     default_ca_engines = ['sklearn', 'auto', 'fbpca']  # by default use the 'prince' code for CA computation

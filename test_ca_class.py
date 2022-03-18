@@ -4,6 +4,20 @@
 
 from linate import CA
 
+
+# Note from 18th March meeting:
+# Naming: instead of CA, it could be:
+# "IdeologicalEmbedding"
+# Accordingly, remove mentions to "ca" across ideological code: for example 
+# ca_model.save_ca_target_coordinates should be ca_model.save_target_coordinates
+# ca_model.ca_target_coordinates_ should be ca_model.target_coordinates_
+
+# Note from 18th March meeting:
+# force_bipartite issue
+# By default, force_bipartite=True (because if an MP is following (source), we don't want that signal)
+# In practice, to implement force_bipartite, the sequence is:
+# 1) remove the source nodes that are also in target, and then 2) applied degree thresholds
+
 def main():
     standardize_mean = True
     ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, 
@@ -44,6 +58,8 @@ def main():
     print('total inertia', ca_model.total_inertia_)
     print('explained inertia', ca_model.explained_inertia_)
 
+    # Note from 18th March meeting:
+    # Overwrite target coordinates depending on whether the user tells to standardize mean and std
     if standardize_mean: 
         # Saving scaled versions to file
         ca_model.save_ca_scaled_target_coordinates('ca_results/ca_scaled_target_cordinates.csv')
