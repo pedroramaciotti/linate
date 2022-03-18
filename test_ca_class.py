@@ -5,13 +5,12 @@
 from linate import CA
 
 def main():
+    standardize_mean = True
     ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, 
-                                                        out_degree_threshold = 2, force_bipartite = False)
-    #ca_model = CA(n_components = 5, engine = 'linate_ds', in_degree_threshold = 0, out_degree_threshold = 3, standardize_mean=True, standardize_std=False, force_bipartite=False)
+            out_degree_threshold = 2, force_bipartite = False, standardize_mean = standardize_mean, standardize_std = True)
+    #ca_model = CA(n_components = 5, engine = 'auto', in_degree_threshold = 2, 
+    #        out_degree_threshold = 2, force_bipartite = False, standardize_mean = True, standardize_std = False)
     
-
-    # COMMENT: if force_bipartite=True, source nodes that are also target nodes should be eliminated from the list of sources
-
     # This is the original example
     #network_file_header_names = {'source':'source', 'target':'target'}
     network_file_header_names = None
@@ -44,6 +43,11 @@ def main():
     print('eigenvalues', ca_model.eigenvalues_)
     print('total inertia', ca_model.total_inertia_)
     print('explained inertia', ca_model.explained_inertia_)
+
+    if standardize_mean: 
+        # Saving scaled versions to file
+        ca_model.save_ca_scaled_target_coordinates('ca_results/ca_scaled_target_cordinates.csv')
+        ca_model.save_ca_scaled_source_coordinates('ca_results/ca_scaled_source_cordinates.csv')
 
     #check_estimator(ca_model)
 
