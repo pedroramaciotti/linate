@@ -205,10 +205,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         # HERE
         return 1
 
-    def load_benchmark_ideological_dimensions(self, path_to_ideological_dimensions_filename,
-            path_to_ideological_dimensions_filenam= None):
-        return None
-
     def load_benchmark_ideological_dimensions(self, path_benchmark_ideological_dimensions_data,
             benchmark_ideological_dimensions_data_header_names = None):
 
