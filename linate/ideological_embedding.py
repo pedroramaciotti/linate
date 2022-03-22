@@ -124,6 +124,26 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             self.ideological_embedding_source_latent_dimensions_ = self.ideological_embedding_model.row_coordinates()
         #print(self.ideological_embedding_source_latent_dimensions_)
 
+        if self.engine in self.default_ideological_embedding_engines:
+            self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates(X)
+        else:
+            self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates()
+
+        if self.standardize_mean:
+            std_scaler = StandardScaler(with_mean = self.standardize_mean, with_std = self.standardize_std)
+            std_scaler.fit(pd.concat([self.ideological_embedding_source_latent_dimensions_,
+                self.ideological_embedding_target_latent_dimensions_], axis = 0))
+
+            target_scaled_dim = pd.DataFrame(columns = self.ideological_embedding_target_latent_dimensions_.columns,
+                    data = std_scaler.transform(self.ideological_embedding_target_latent_dimensions_))
+            self.ideological_embedding_target_latent_dimensions_ = target_scaled_dim
+
+            source_scaled_dim = pd.DataFrame(columns = self.ideological_embedding_source_latent_dimensions_.columns,
+                    data = std_scaler.transform(self.ideological_embedding_source_latent_dimensions_))
+            self.ideological_embedding_source_latent_dimensions_ = source_scaled_dim
+
+            print(self.ideological_embedding_target_latent_dimensions_)
+
         column_names = self.ideological_embedding_source_latent_dimensions_.columns
         new_column_names = []
         for c in column_names:
@@ -133,11 +153,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         self.ideological_embedding_source_latent_dimensions_.index.name = 'source ID'
         #self.ideological_embedding_source_latent_dimensions_.reset_index(inplace = True)
         #print(self.ideological_embedding_source_latent_dimensions_)
-
-        if self.engine in self.default_ideological_embedding_engines:
-            self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates(X)
-        else:
-            self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates()
 
         column_names = self.ideological_embedding_target_latent_dimensions_.columns
         new_column_names = []
@@ -154,26 +169,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         #print('Total inertia: ', total_inertia_)
         self.candidate_explained_inertia_ = self.ideological_embedding_model.explained_inertia_ # list or None
         #print('Explained inertia: ', explained_inertia_)
-
-        if self.standardize_mean:
-            std_scaler = StandardScaler(with_mean = self.standardize_mean, with_std = self.standardize_std)
-            std_scaler.fit(pd.concat([self.ideological_embedding_source_latent_dimensions_,
-                self.ideological_embedding_target_latent_dimensions_], axis = 0))
-
-            cols = new_column_names
-
-            ideological_embedding_scaled_source_latent_dimensions_ = pd.DataFrame(columns = cols,
-                    data = std_scaler.transform(self.ideological_embedding_source_latent_dimensions_))
-            ideological_embedding_scaled_source_latent_dimensions_.index = self.row_ids_
-            ideological_embedding_scaled_source_latent_dimensions_.index.name = 'source ID'
-            # overwrite latent dimensions
-            self.ideological_embedding_source_latent_dimensions_ = ideological_embedding_scaled_source_latent_dimensions_
-
-            ideological_embedding_scaled_target_latent_dimensions_ = pd.DataFrame(columns = cols,
-                    data = std_scaler.transform(self.ideological_embedding_target_latent_dimensions_))
-            ideological_embedding_scaled_target_latent_dimensions_.index = self.column_ids_
-            ideological_embedding_scaled_target_latent_dimensions_.index.name = 'target ID'
-            self.ideological_embedding_target_latent_dimensions_ = ideological_embedding_scaled_target_latent_dimensions_
 
         return self
 
@@ -200,12 +195,80 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
     def score(self, X, y):
         return 1
 
-    def compute_latent_dimension_distance(self, Y, y_dimensions = None,
-            use_target_ideological_embedding = True, i_dimensions = None):
-        # HERE
-        return 1
+    def compute_latent_embedding_distance(self, Y, use_target_ideological_embedding = True,
+            ideological_dimension_mapping = None, error_aggregation_fun = None):
 
-    def load_benchmark_ideological_dimensions(self, path_benchmark_ideological_dimensions_data,
+        try:
+            X = None
+            if use_target_ideological_embedding:
+                X = self.ideological_embedding_target_latent_dimensions_
+
+                # sort to achieve correspondence with Y
+                X = X.sort_values('target ID', ascending = True)
+            else:
+                X = self.ideological_embedding_source_latent_dimensions_
+
+                # sort to achieve correspondence with Y
+                X = X.sort_values('source ID', ascending = True)
+        except AttributeError:
+            raise AttributeError('Ideological Embedding model has not been fitted.')
+        if X.index.name is not None:
+            X = X.reset_index()
+
+        if isinstance(X, pd.DataFrame):
+
+            if ideological_dimension_mapping is None:
+                # delete first column which is the entity ID
+                X = X.iloc[: , 1:]
+            else:
+                if 'X' in ideological_dimension_mapping.keys():
+                    X = X[ideological_dimension_mapping['X']]
+                else:
+                    X = X.iloc[: , 1:]
+
+            X = X.to_numpy()
+
+        assert isinstance(X, np. ndarray)
+
+        if isinstance(Y, pd.DataFrame):
+            if 'entity' not in Y.columns:
+                raise ValueError('Benchmark dimension data frame has to have an \'entity\' column.')
+
+            # sort to achieve correspondence with Y
+            Y = Y.sort_values('entity', ascending = True)
+
+            if ideological_dimension_mapping is None:
+                # delete first column which is the entity ID
+                Y = Y.iloc[: , 1:]
+            else:
+                if 'Y' in ideological_dimension_mapping.keys():
+                    Y = Y[ideological_dimension_mapping['Y']]
+                else:
+                    Y = Y.iloc[: , 1:]
+
+            Y = Y.to_numpy()
+
+        assert isinstance(Y, np. ndarray)
+
+        # X and Y should have the same dimensions
+        if X.shape[0] != Y.shape[0]:
+            raise ValueError('Dimension matrices should have the same shape.')
+        if X.shape[1] != Y.shape[1]:
+            raise ValueError('Dimension matrices should have the same shape.')
+
+        # compute Euclidean norm of each row
+        l2 = np.sqrt(np.power(X - Y, 2.0).sum(axis = 1))
+
+        ideological_dim_distance = np.sqrt(np.power(l2, 2.0).sum()) / float(len(l2)) # default RMSE variant
+        if error_aggregation_fun is not None:
+            if error_aggregation_fun == 'MAE':
+                ideological_dim_distance = np.absolute(l2).sum() / float(len(l2))
+            else: # user defined
+                ideological_dim_distance = error_aggregation_fun(l2)
+
+        return (ideological_dim_distance)
+
+    def load_benchmark_ideological_dimensions_from_file(self, path_benchmark_ideological_dimensions_data,
             benchmark_ideological_dimensions_data_header_names = None):
 
         # check that benchmark ideological dimensions file is provided
@@ -237,10 +300,11 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             input_df = pd.read_csv(path_benchmark_ideological_dimensions_data).rename(columns = 
                     {benchmark_ideological_dimensions_data_header_names['entity']:'entity'})
 
-        if 'dimensions' in benchmark_ideological_dimensions_data_header_names.keys():
-            cols = benchmark_ideological_dimensions_data_header_names['dimensions']
-            cols.append('entity')
-            input_df = input_df[cols]
+        if benchmark_ideological_dimensions_data_header_names is not None:
+            if 'dimensions' in benchmark_ideological_dimensions_data_header_names.keys():
+                cols = benchmark_ideological_dimensions_data_header_names['dimensions']
+                cols.append('entity')
+                input_df = input_df[cols]
 
         input_df['entity'] = input_df['entity'].astype(str)
         for c in input_df.columns:
@@ -311,7 +375,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             self.candidate_total_inertia_ = self.ideological_embedding_model.get_total_inertia()
             return (self.candidate_total_inertia_)
         except AttributeError:
-            raise AttributeError('IdeologicalEmbedding  model has not been fitted.')
+            raise AttributeError('Ideological Embedding model has not been fitted.')
 
     @property
     def explained_inertia_(self):
@@ -322,7 +386,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             self.candidate_total_inertia_ = self.ideological_embedding_model.get_explained_inertia()
             return (self.candidate_total_inertia_)
         except AttributeError:
-            raise AttributeError('IdeologicalEmbedding model has not been fitted.')
+            raise AttributeError('Ideological Embedding model has not been fitted.')
 
     def __check_input_and_convert_to_matrix(self, input_df):
 
@@ -387,7 +451,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             degree_per_source.drop('target', axis = 1, inplace = True)
             input_df = pd.merge(input_df, degree_per_source, on = ['source'], how = 'inner')
 
-        # and then assemble the matrices to be fed to IdeologicalEmbedding
+        # and then assemble the matrices to be fed to Ideological embedding
         ntwrk_df = input_df[['source', 'target']]
 
         n_i, r = ntwrk_df['target'].factorize()
