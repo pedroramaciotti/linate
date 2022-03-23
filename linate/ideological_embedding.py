@@ -1,4 +1,4 @@
-""" LINATE module 1: Compute (Latent) Ideological Embedding """
+""" LINATE module: Compute (Latent) Ideological Embedding """
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler

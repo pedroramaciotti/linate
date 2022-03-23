@@ -1,7 +1,7 @@
 from .ideological_embedding import IdeologicalEmbedding
 
-from .affine_transformation import AffineTransformation
+from .attitudinal_embedding import AttitudinalEmbedding
 
 from .__version__ import __version__
 
-__all__ = ['IdeologicalEmbedding', '__version__', 'AffineTransformation']
+__all__ = ['IdeologicalEmbedding', '__version__', 'AttitudinalEmbedding']
