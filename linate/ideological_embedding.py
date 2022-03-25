@@ -228,7 +228,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
             X = X.to_numpy()
 
-        assert isinstance(X, np. ndarray)
+        assert isinstance(X, np.ndarray)
 
         if isinstance(Y, pd.DataFrame):
             if 'entity' not in Y.columns:
@@ -248,7 +248,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
             Y = Y.to_numpy()
 
-        assert isinstance(Y, np. ndarray)
+        assert isinstance(Y, np.ndarray)
 
         # X and Y should have the same dimensions
         if X.shape[0] != Y.shape[0]:
