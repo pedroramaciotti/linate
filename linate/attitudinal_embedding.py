@@ -91,8 +91,6 @@ class AttitudinalEmbedding(BaseEstimator, TransformerMixin):
             X = X.to_numpy()
 
         try:
-            HERE = 1
-
             X_np = X[:, :self.employed_N_]
             X_np = X_np.T
             ones_np = np.ones((X_np.shape[1],), dtype = float)
