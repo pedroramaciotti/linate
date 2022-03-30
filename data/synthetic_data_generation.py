@@ -11,6 +11,10 @@ from scipy.stats import multivariate_normal as gaussian
 
 import pandas as pd
 
+from scipy.special import expit
+
+from scipy.stats import bernoulli
+
 ######################################################
 # Generating synthetic data in ideological space :   #
 ######################################################
@@ -72,6 +76,7 @@ def load_gaussian_mixture_model_mu_and_cov_from_files(mu_filename, cov_filename)
 
     return(mixmod)
 
+# returns generated entity dimensions as well as groups where those entities belong (it can be a single group)
 def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, random_state = None):
     if N is None:
         raise ValueError('Total number of entities to be generated must be provided')
@@ -80,18 +85,27 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, 
         raise ValueError('Mixture model parameters must be provided')
 
     entities = []
-    #entity_labels = [] 
+    entity_groups = []
+    entity_ids = []
+    entity_id = 0
     for k, component in gaussian_mixture_model_parameters.items():
         k_entities = gaussian.rvs(mean = component['mu'], cov = component['cov'], 
                 size = int(N / len(gaussian_mixture_model_parameters)), random_state = random_state)
 
+        k_entity_group = [k for i in range(0, len(k_entities))]
+
+        for i in range(0, len(k_entities)):
+                entity_ids.append(entity_id)
+                entity_id = entity_id + 1
+
         entities.extend(k_entities.tolist())
-     #   phi_labels+=[k]*int(N_referential/len(ref_mixmod))
-     #   phi_label_colors = [ref_label_colors[l] for l in phi_labels] 
+        entity_groups.extend(k_entity_group)
 
     entities = np.array(entities)
-    #print(entities)
-    return (entities)
+    entity_info = np.column_stack((entity_ids, entity_groups))
+    entity_info = entity_info.astype(int)
+
+    return (entities, entity_info)
 
 #######################################################################
 # Creating unobservable attitudes from prescribed ideologies: A       #
@@ -118,6 +132,7 @@ def load_augmented_transformation_from_file(transformation_filename):
 
     return (T_tilda_aff_np)
 
+# assume entity dimensions matrix is in (entity x dimensions) format
 def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
 
     if not isinstance(entity_dimensions, np.ndarray):
@@ -137,49 +152,72 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
 
     return (transformed_entity_dimensions.T)
 
-def load_entities_in_idelogical_space_from_file(entity_filename):
-
-    if entity_filename is None:
-        raise ValueError('Entity embedding filename should be provided') 
-
-    if not os.path.isfile(entity_filename):
-        raise ValueError('Entity embedding file does not exist')
-
-    entities = np.loadtxt(entity_filename, delimiter = ",")
-    return (entities)
-
 #############################################################################
 # Computing the social graph using distances within a given space           #
 #############################################################################
 
-def compute_social_graph():
+def compute_social_graph(source_id, source_dimensions, target_id, target_dimensions, alpha = 2, beta = 2):
     # first distances in for all potential edges (pairs of source-target entities)
     graph_edges = pd.DataFrame(columns = ['source', 'target'])
-    print(graph_edges) 
 
-    edges['source'] = list(range(f_P.shape[1])) * r_P.shape[1]
+    source_list = []
+    target_list = []
+    for i in source_id:
+        for j in target_id:
+            source_list.append(source_id[i])
+            target_list.append(target_id[j])
 
-    #edges['distance'] = edges.apply(lambda row: np.sqrt((row['references_d_P_1'] - row['followers_d_P_1'])**2
-    #    + (row['references_d_P_2'] - row['followers_d_P_2'])**2
-    #    + (row['references_d_P_3'] - row['followers_d_P_3'])**2), axis = 1)
+    graph_edges['source'] = source_list
+    graph_edges['target'] = target_list
 
-    #edges['references'] = list(itertools.chain.from_iterable(itertools.repeat(x,
-    #@    f_P.shape[1]) for x in range(r_P.shape[1])))
+    distances_list = []
+    for _, row in graph_edges.iterrows():
+        s_id = int(row['source'])
+        t_id = int(row['target'])
+        distances_list.append(np.linalg.norm(source_dimensions[s_id] - target_dimensions[t_id])) # Euclidean distance
+    graph_edges['distance'] = distances_list
 
-#for dim in [1,2,3]:
-#    edges['references_d_P_%d'%dim] = edges['references'].apply(lambda i: r_P[dim-1,i])
-#    edges['followers_d_P_%d'%dim] = edges['followers'].apply(lambda i: f_P[dim-1,i])
+    # probability function for target-source connections based on distances
+    prob = lambda d: expit(alpha-beta*d)
+
+    # Computing an instance of the social graph G based on probability of edges
+    graph_edges['probability'] = graph_edges['distance'].apply(prob)
+    graph_edges['selected'] = graph_edges['probability'].apply(lambda d: bernoulli.rvs(d, size = 1)[0])
+    #print('Density = %0.5f'%(edges['selected'].sum()/edges.shape[0]))
+    graph_edges = graph_edges[graph_edges['selected'] == 1]
+    graph_edges.drop(['selected'], axis = 1, inplace = True)
+
+    #print(graph_edges)
+    return(graph_edges)
 
 #######################################################################
 # general utility functions
-def save_entities_dimensions_to_file(entity_dimensions, entity_filename):
-    if entity_dimensions is None:
-        raise ValueError('Entity dimensions should be provided')
+#######################################################################
+def save_array_to_file(array, filename, is_float = True):
+    if array is None:
+        raise ValueError('First argument cannot be \'None\'')
 
-    if entity_filename is None:
-        raise ValueError('Entity filename should be provided') 
+    if filename is None:
+        raise ValueError('Filename should be provided') 
 
-    if not isinstance(entity_dimensions, np.ndarray):
-        raise ValueError('Entity dimensions should be a numpy array')
+    if not isinstance(array, np.ndarray):
+        raise ValueError('First argument should be a numpy array')
 
-    np.savetxt(entity_filename, entity_dimensions, delimiter = ",")
+    if is_float:
+        np.savetxt(filename, array, delimiter = ",", fmt = '%f')
+    else:
+        np.savetxt(filename, array, delimiter = ",", fmt = '%i')
+
+def load_array_from_file(filename, is_float = True):
+
+    if filename is None:
+        raise ValueError('Filename should be provided') 
+
+    if not os.path.isfile(filename):
+        raise ValueError('File does not exist')
+
+    array = np.loadtxt(filename, delimiter = ",")
+    if not is_float:
+        array = array.astype(int)
+
+    return (array)
