@@ -19,15 +19,19 @@ def main():
     ref_mixmod = gen.load_gaussian_mixture_model_mu_and_cov_from_files('parameters/phi_mu.txt',
             'parameters/phi_cov.txt')
     #print(ref_mixmod)
-    phi, phi_info = gen.generate_entities_in_idelogical_space(N_referential, ref_mixmod, random_state = random_state)
+    phi, phi_info, phi_group, phi_group_info  = gen.generate_entities_in_idelogical_space(N_referential,
+            ref_mixmod, random_state = random_state)
     gen.save_array_to_file(phi, 'generated_data/phi.txt')
     gen.save_array_to_file(phi_info, 'generated_data/phi_info.txt', is_float = False)
+    gen.save_array_to_file(phi_group, 'generated_data/phi_group.txt')
+    gen.save_array_to_file(phi_group_info, 'generated_data/phi_group_info.txt', is_float = False)
 
     # followers in ideological space
     fol_mixmod = gen.load_gaussian_mixture_model_mu_and_cov_from_files('parameters/theta_mu.txt',
             'parameters/theta_cov.txt')
     #print(fol_mixmod)
-    theta, theta_info = gen.generate_entities_in_idelogical_space(N_followers, fol_mixmod, random_state = random_state)
+    theta, theta_info = gen.generate_entities_in_idelogical_space(N_followers, fol_mixmod,
+            random_state = random_state, produce_group_dimensions = False)
     gen.save_array_to_file(theta, 'generated_data/theta.txt')
     gen.save_array_to_file(theta_info, 'generated_data/theta_info.txt', is_float = False)
 
@@ -59,7 +63,7 @@ def main():
 
     alpha = 2
     beta = 2
-    social_graph = gen.compute_social_graph(f_info.T[0], f, r_info.T[0], r, alpha, beta)
+    social_graph = gen.compute_social_graph(f_info.T[0], f, r_info.T[0], r, random_state, alpha, beta)
     print(social_graph.shape)
 
     # create aggregates here (i.e after node filtering)

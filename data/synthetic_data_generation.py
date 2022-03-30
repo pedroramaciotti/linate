@@ -1,5 +1,7 @@
 # Process:
 #    1. generate data in ideological space
+#    2. transform the data into attitudinal space
+#    3. generate social graph
 
 import numpy as np
 
@@ -77,7 +79,8 @@ def load_gaussian_mixture_model_mu_and_cov_from_files(mu_filename, cov_filename)
     return(mixmod)
 
 # returns generated entity dimensions as well as groups where those entities belong (it can be a single group)
-def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, random_state = None):
+def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters,
+        produce_group_dimensions = True, random_state = None):
     if N is None:
         raise ValueError('Total number of entities to be generated must be provided')
 
@@ -85,9 +88,18 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, 
         raise ValueError('Mixture model parameters must be provided')
 
     entities = []
-    entity_groups = []
+    entity_group_ids = []
     entity_ids = []
     entity_id = 0
+
+    if produce_group_dimensions:
+        g_no = len(gaussian_mixture_model_parameters)
+        g_dim = len(gaussian_mixture_model_parameters[0]['mu'])
+        entity_groups = np.empty([g_no, g_dim])
+        entity_group_info = np.empty(g_no, dtype = int)
+
+        g_indx = 0
+
     for k, component in gaussian_mixture_model_parameters.items():
         k_entities = gaussian.rvs(mean = component['mu'], cov = component['cov'], 
                 size = int(N / len(gaussian_mixture_model_parameters)), random_state = random_state)
@@ -99,11 +111,19 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, 
                 entity_id = entity_id + 1
 
         entities.extend(k_entities.tolist())
-        entity_groups.extend(k_entity_group)
+        entity_group_ids.extend(k_entity_group)
+
+        if produce_group_dimensions:
+            entity_group_info[g_indx] = k
+            entity_groups[g_indx] = np.mean(k_entities, axis = 0)
+            g_indx = g_indx + 1
 
     entities = np.array(entities)
-    entity_info = np.column_stack((entity_ids, entity_groups))
+    entity_info = np.column_stack((entity_ids, entity_group_ids))
     entity_info = entity_info.astype(int)
+
+    if produce_group_dimensions:
+        return (entities, entity_info, entity_groups, entity_group_info)
 
     return (entities, entity_info)
 
@@ -156,7 +176,8 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
 # Computing the social graph using distances within a given space           #
 #############################################################################
 
-def compute_social_graph(source_id, source_dimensions, target_id, target_dimensions, alpha = 2, beta = 2):
+def compute_social_graph(source_id, source_dimensions, target_id, target_dimensions,
+        random_state, alpha = 2, beta = 2):
     # first distances in for all potential edges (pairs of source-target entities)
     graph_edges = pd.DataFrame(columns = ['source', 'target'])
 
@@ -182,7 +203,8 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
 
     # Computing an instance of the social graph G based on probability of edges
     graph_edges['probability'] = graph_edges['distance'].apply(prob)
-    graph_edges['selected'] = graph_edges['probability'].apply(lambda d: bernoulli.rvs(d, size = 1)[0])
+    graph_edges['selected'] = graph_edges['probability'].apply(lambda d: bernoulli.rvs(d, size = 1,
+        random_state = random_state)[0])
     #print('Density = %0.5f'%(edges['selected'].sum()/edges.shape[0]))
     graph_edges = graph_edges[graph_edges['selected'] == 1]
     graph_edges.drop(['selected'], axis = 1, inplace = True)
