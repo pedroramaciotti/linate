@@ -212,7 +212,7 @@ if engine in default_engines:
 
 #########################
 #
-# Compute the CA   HERE
+# Compute the CA
 #                      
 ###########################################################################
 n_components_tmp = source_users_no_
