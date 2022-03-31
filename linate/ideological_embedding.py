@@ -114,7 +114,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
                     n_iter = self.n_iter, check_input = False, engine = self.engine, random_state = self.random_state)
             self.ideological_embedding_model.fit(X)
         else:
-            self.ideological_embedding_model = ideological_embedding_class(n_components = self.n_latent_dimensions)
+            self.ideological_embedding_model = ideological_embedding_class(n_components = self.employed_n_latent_dimensions)
             self.ideological_embedding_model.fit(X)
 
         # finally construct the results
@@ -350,7 +350,9 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
                 network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
                     network_file_header_names['target']:'target'})
 
+        #print(input_df)
         input_df = self.__check_input_and_convert_to_matrix(input_df) 
+        print('Finished loading network..')
 
         return(input_df)
 
