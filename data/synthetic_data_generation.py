@@ -153,6 +153,7 @@ def load_augmented_transformation_from_file(transformation_filename):
     return (T_tilda_aff_np)
 
 # assume entity dimensions matrix is in (entity x dimensions) format
+#def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff, phi_info):
 def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
 
     if not isinstance(entity_dimensions, np.ndarray):
@@ -169,8 +170,19 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
 
     transformed_entity_dimensions = np.matmul(T_tilda_aff, entity_dimensions_tilda_np)
     transformed_entity_dimensions = transformed_entity_dimensions[:-1]
+    transformed_entity_dimensions = transformed_entity_dimensions.T
 
-    return (transformed_entity_dimensions.T)
+    '''
+    groups = phi_info[1]
+    group_ids = np.unique(phi_info[1])
+    for g in group_ids:
+        g_indx = np.where(groups == g)
+        group = transformed_entity_dimensions[g_indx]
+        group = np.mean(group, axis = 0)
+        print(g, g_indx, group)
+    '''
+
+    return (transformed_entity_dimensions)
 
 #############################################################################
 # Computing the social graph using distances within a given space           #
@@ -197,6 +209,7 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
         t_id = int(row['target'])
         distances_list.append(np.linalg.norm(source_dimensions[s_id] - target_dimensions[t_id])) # Euclidean distance
     graph_edges['distance'] = distances_list
+    #print(graph_edges.shape)
 
     # probability function for target-source connections based on distances
     prob = lambda d: expit(alpha-beta*d)
