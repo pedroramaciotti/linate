@@ -33,9 +33,11 @@ def main():
     T_tilda_aff = gen.load_augmented_transformation_from_file('parameters/T_tilda_aff.txt')
 
     phi_directed = gen.load_array_from_file('generated_data/phi_directed.txt')
-    r_directed = gen.transform_entity_dimensions_to_new_space(phi_directed.T, T_tilda_aff)
+    r_directed, r_directed_group = gen.transform_entity_dimensions_to_new_space(phi_directed.T,
+            T_tilda_aff, entity_dimensions_info = phi_directed_info.T)
     #print(r_directed)
     gen.save_array_to_file(r_directed, 'generated_data/r_directed.txt')
+    gen.save_array_to_file(r_directed_group, 'generated_data/r_directed_group.txt')
 
     #############################################################################
     # Computing the social graph using distances within a given space           #

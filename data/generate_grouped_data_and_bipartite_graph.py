@@ -42,13 +42,15 @@ def main():
     T_tilda_aff = gen.load_augmented_transformation_from_file('parameters/T_tilda_aff.txt')
 
     phi = gen.load_array_from_file('generated_data/phi.txt')
-    #r = gen.transform_entity_dimensions_to_new_space(phi.T, T_tilda_aff, phi_info.T)
-    r = gen.transform_entity_dimensions_to_new_space(phi.T, T_tilda_aff)
+    r, r_group = gen.transform_entity_dimensions_to_new_space(phi.T, T_tilda_aff,
+            entity_dimensions_info = phi_info.T)
     #print(r)
     gen.save_array_to_file(r, 'generated_data/r.txt')
+    gen.save_array_to_file(r_group, 'generated_data/r_group.txt')
 
     theta = gen.load_array_from_file('generated_data/theta.txt')
-    f = gen.transform_entity_dimensions_to_new_space(theta.T, T_tilda_aff)
+    f = gen.transform_entity_dimensions_to_new_space(theta.T, T_tilda_aff,
+            produce_group_dimensions = False)
     gen.save_array_to_file(f, 'generated_data/f.txt')
 
     #############################################################################

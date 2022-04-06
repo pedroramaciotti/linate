@@ -40,12 +40,14 @@ def main():
     T_tilda_aff = gen.load_augmented_transformation_from_file('parameters/T_tilda_aff.txt')
 
     phi_indvdl = gen.load_array_from_file('generated_data/phi_indvdl.txt')
-    r_indvdl = gen.transform_entity_dimensions_to_new_space(phi_indvdl.T, T_tilda_aff)
+    r_indvdl = gen.transform_entity_dimensions_to_new_space(phi_indvdl.T, T_tilda_aff,
+            produce_group_dimensions = False)
     #print(r_indvdl)
     gen.save_array_to_file(r_indvdl, 'generated_data/r_indvdl.txt')
 
     theta_indvdl = gen.load_array_from_file('generated_data/theta_indvdl.txt')
-    f_indvdl = gen.transform_entity_dimensions_to_new_space(theta_indvdl.T, T_tilda_aff)
+    f_indvdl = gen.transform_entity_dimensions_to_new_space(theta_indvdl.T, T_tilda_aff,
+            produce_group_dimensions = False)
     gen.save_array_to_file(f_indvdl, 'generated_data/f_indvdl.txt')
 
     #############################################################################

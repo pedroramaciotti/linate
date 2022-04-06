@@ -30,7 +30,8 @@ def main():
     T_tilda_aff = gen.load_augmented_transformation_from_file('parameters/T_tilda_aff.txt')
 
     phi_indvdl_directed = gen.load_array_from_file('generated_data/phi_indvdl_directed.txt')
-    r_indvdl_directed = gen.transform_entity_dimensions_to_new_space(phi_indvdl_directed.T, T_tilda_aff)
+    r_indvdl_directed = gen.transform_entity_dimensions_to_new_space(phi_indvdl_directed.T, T_tilda_aff,
+            produce_group_dimensions = False)
     #print(r_indvdl_directed)
     gen.save_array_to_file(r_indvdl_directed, 'generated_data/r_indvdl_directed.txt')
 

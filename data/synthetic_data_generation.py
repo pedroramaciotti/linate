@@ -152,9 +152,9 @@ def load_augmented_transformation_from_file(transformation_filename):
 
     return (T_tilda_aff_np)
 
-# assume entity dimensions matrix is in (entity x dimensions) format
-#def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff, phi_info):
-def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
+# assume entity dimensions matrix is in (dimensions x entity) format
+def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff, 
+        produce_group_dimensions = True, entity_dimensions_info = None):
 
     if not isinstance(entity_dimensions, np.ndarray):
         raise ValueError('Entity dimensions should be a numpy array') 
@@ -172,15 +172,22 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff):
     transformed_entity_dimensions = transformed_entity_dimensions[:-1]
     transformed_entity_dimensions = transformed_entity_dimensions.T
 
-    '''
-    groups = phi_info[1]
-    group_ids = np.unique(phi_info[1])
-    for g in group_ids:
-        g_indx = np.where(groups == g)
-        group = transformed_entity_dimensions[g_indx]
-        group = np.mean(group, axis = 0)
-        print(g, g_indx, group)
-    '''
+    if produce_group_dimensions:
+        #entity_groups[g_indx] = np.mean(k_entities, axis = 0)
+        if entity_dimensions_info is None:
+            raise ValueError('For group level dimensions the \'entity_dimentions_info \' parameter cannot be \'None\'.') 
+
+        groups = entity_dimensions_info[1]
+        group_ids = np.unique(groups)
+
+        transformed_entity_groups = np.empty([len(group_ids), transformed_entity_dimensions.shape[1]])
+        eg_indx = 0
+        for g in group_ids:
+            g_indx = np.where(groups == g)
+            group = transformed_entity_dimensions[g_indx]
+            transformed_entity_groups[eg_indx] = np.mean(group, axis = 0)
+            eg_indx = eg_indx + 1
+        return (transformed_entity_dimensions, transformed_entity_groups)
 
     return (transformed_entity_dimensions)
 
@@ -212,7 +219,7 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
     #print(graph_edges.shape)
 
     # probability function for target-source connections based on distances
-    prob = lambda d: expit(alpha-beta*d)
+    prob = lambda d: expit(alpha - beta * d)
 
     # Computing an instance of the social graph G based on probability of edges
     graph_edges['probability'] = graph_edges['distance'].apply(prob)
