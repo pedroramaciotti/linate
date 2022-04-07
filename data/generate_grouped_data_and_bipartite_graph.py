@@ -73,8 +73,10 @@ def main():
 
     alpha = int(params['data_gen']['alpha'])
     beta = int(params['data_gen']['beta'])
-    social_graph_df = gen.compute_social_graph(f_info.T[0], f, r_info.T[0], r, random_state, alpha, beta)
+    social_graph_df, all_edges = gen.compute_social_graph(f_info.T[0], f, r_info.T[0], r, random_state,
+            alpha, beta, output_all_distances = True)
     gen.save_dataframe_to_file(social_graph_df, params['data_gen']['social_graph'])
+    gen.save_dataframe_to_file(all_edges, params['data_gen']['all_edges'])
 
 if __name__ == "__main__":
     main()

@@ -196,7 +196,7 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
 #############################################################################
 
 def compute_social_graph(source_id, source_dimensions, target_id, target_dimensions,
-        random_state, alpha = 2, beta = 2):
+        random_state, alpha = 2, beta = 2, output_all_distances = False):
     # first distances in for all potential edges (pairs of source-target entities)
     graph_edges = pd.DataFrame(columns = ['source', 'target'])
 
@@ -223,11 +223,17 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
 
     # Computing an instance of the social graph G based on probability of edges
     graph_edges['probability'] = graph_edges['distance'].apply(prob)
+    if output_all_distances:
+        all_candidate_graph_edges = graph_edges.copy()
+
     graph_edges['selected'] = graph_edges['probability'].apply(lambda d: bernoulli.rvs(d, size = 1,
         random_state = random_state)[0])
     #print('Density = %0.5f'%(edges['selected'].sum()/edges.shape[0]))
     graph_edges = graph_edges[graph_edges['selected'] == 1]
     graph_edges.drop(['selected'], axis = 1, inplace = True)
+
+    if output_all_distances:
+        return(graph_edges, all_candidate_graph_edges)
 
     #print(graph_edges)
     return(graph_edges)
