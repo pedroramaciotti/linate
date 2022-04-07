@@ -263,3 +263,15 @@ def load_array_from_file(filename, is_float = True):
         array = array.astype(int)
 
     return (array)
+
+def save_dataframe_to_file(df, filename):
+    if df is None:
+        raise ValueError('First argument cannot be \'None\'')
+
+    if filename is None:
+        raise ValueError('Filename should be provided') 
+
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError('First argument should be a dataframe')
+
+    df.to_csv(filename, sep = ',', index = False)
