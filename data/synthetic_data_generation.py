@@ -79,7 +79,7 @@ def load_gaussian_mixture_model_mu_and_cov_from_files(mu_filename, cov_filename)
     return(mixmod)
 
 # returns generated entity dimensions as well as groups where those entities belong (it can be a single group)
-def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters,
+def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters, entity_id_prefix = 'n_',
         produce_group_dimensions = True, random_state = None):
     if N is None:
         raise ValueError('Total number of entities to be generated must be provided')
@@ -89,6 +89,7 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters,
 
     entities = []
     entity_group_ids = []
+    entity_indices = []
     entity_ids = []
     entity_id = 0
 
@@ -107,7 +108,8 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters,
         k_entity_group = [k for i in range(0, len(k_entities))]
 
         for i in range(0, len(k_entities)):
-                entity_ids.append(entity_id)
+                entity_indices.append(entity_id)
+                entity_ids.append(entity_id_prefix + str(entity_id))
                 entity_id = entity_id + 1
 
         entities.extend(k_entities.tolist())
@@ -119,8 +121,9 @@ def generate_entities_in_idelogical_space(N, gaussian_mixture_model_parameters,
             g_indx = g_indx + 1
 
     entities = np.array(entities)
-    entity_info = np.column_stack((entity_ids, entity_group_ids))
-    entity_info = entity_info.astype(int)
+
+    entity_info = np.column_stack((entity_indices, entity_group_ids, entity_ids))
+    #entity_info = entity_info.astype((object))
 
     if produce_group_dimensions:
         return (entities, entity_info, entity_groups, entity_group_info)
@@ -177,7 +180,7 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
         if entity_dimensions_info is None:
             raise ValueError('For group level dimensions the \'entity_dimentions_info \' parameter cannot be \'None\'.') 
 
-        groups = entity_dimensions_info[1]
+        groups = entity_dimensions_info[1].astype(int)
         group_ids = np.unique(groups)
 
         transformed_entity_groups = np.empty([len(group_ids), transformed_entity_dimensions.shape[1]])
@@ -195,28 +198,38 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
 # Computing the social graph using distances within a given space           #
 #############################################################################
 
-def compute_social_graph(source_id, source_dimensions, target_id, target_dimensions,
-        random_state, alpha = 2, beta = 2, output_all_distances = False):
+def compute_social_graph(source_indx, source_id, source_dimensions, target_indx, target_id,
+        target_dimensions, random_state, alpha = 2, beta = 2, output_all_distances = False):
     # first distances in for all potential edges (pairs of source-target entities)
     graph_edges = pd.DataFrame(columns = ['source', 'target'])
 
-    source_list = []
-    target_list = []
-    for i in source_id:
-        for j in target_id:
-            source_list.append(source_id[i])
-            target_list.append(target_id[j])
+    source_indx = source_indx.astype(int)
+    target_indx = target_indx.astype(int)
 
-    graph_edges['source'] = source_list
-    graph_edges['target'] = target_list
+    source_indx_list = []
+    target_indx_list = []
+    source_id_list = []
+    target_id_list = []
+    for i in source_indx:
+        for j in target_indx:
+            source_indx_list.append(int(source_indx[i]))
+            target_indx_list.append(int(target_indx[j]))
+
+            source_id_list.append(source_id[i])
+            target_id_list.append(target_id[j])
+
+    graph_edges['source'] = source_id_list
+    graph_edges['target'] = target_id_list
+
+    graph_edges['source_indx'] = source_indx_list
+    graph_edges['target_indx'] = target_indx_list
 
     distances_list = []
     for _, row in graph_edges.iterrows():
-        s_id = int(row['source'])
-        t_id = int(row['target'])
+        s_id = int(row['source_indx'])
+        t_id = int(row['target_indx'])
         distances_list.append(np.linalg.norm(source_dimensions[s_id] - target_dimensions[t_id])) # Euclidean distance
     graph_edges['distance'] = distances_list
-    #print(graph_edges.shape)
 
     # probability function for target-source connections based on distances
     prob = lambda d: expit(alpha - beta * d)
@@ -231,6 +244,8 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
     #print('Density = %0.5f'%(edges['selected'].sum()/edges.shape[0]))
     graph_edges = graph_edges[graph_edges['selected'] == 1]
     graph_edges.drop(['selected'], axis = 1, inplace = True)
+    #graph_edges.drop(['source_indx'], axis = 1, inplace = True)
+    #graph_edges.drop(['target_indx'], axis = 1, inplace = True)
 
     if output_all_distances:
         return(graph_edges, all_candidate_graph_edges)
@@ -241,7 +256,7 @@ def compute_social_graph(source_id, source_dimensions, target_id, target_dimensi
 #######################################################################
 # general utility functions
 #######################################################################
-def save_array_to_file(array, filename, is_float = True):
+def save_array_to_file(array, filename, format_specifier):
     if array is None:
         raise ValueError('First argument cannot be \'None\'')
 
@@ -249,14 +264,11 @@ def save_array_to_file(array, filename, is_float = True):
         raise ValueError('Filename should be provided') 
 
     if not isinstance(array, np.ndarray):
-        raise ValueError('First argument should be a numpy array')
+        raise ValueError('First argument should be a numpy array') 
 
-    if is_float:
-        np.savetxt(filename, array, delimiter = ",", fmt = '%f')
-    else:
-        np.savetxt(filename, array, delimiter = ",", fmt = '%i')
+    np.savetxt(filename, array, delimiter = ",", fmt = format_specifier)
 
-def load_array_from_file(filename, is_float = True):
+def load_array_from_file(filename, is_str = False):
 
     if filename is None:
         raise ValueError('Filename should be provided') 
@@ -264,9 +276,10 @@ def load_array_from_file(filename, is_float = True):
     if not os.path.isfile(filename):
         raise ValueError('File does not exist')
 
-    array = np.loadtxt(filename, delimiter = ",")
-    if not is_float:
-        array = array.astype(int)
+    if is_str:
+        array = np.loadtxt(filename, delimiter = ",", dtype = str)
+    else:
+        array = np.loadtxt(filename, delimiter = ",")
 
     return (array)
 

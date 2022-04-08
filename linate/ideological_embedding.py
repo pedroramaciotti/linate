@@ -24,7 +24,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
     def __init__(self, n_latent_dimensions = 2, n_iter = 10, check_input = True, random_state = None,
             engine = 'auto', in_degree_threshold = None, out_degree_threshold = None,
-            force_bipartite = True, standardize_mean = True, standardize_std = False,):
+            force_bipartite = True, standardize_mean = True, standardize_std = False):
 
         self.random_state = random_state
 
@@ -346,11 +346,18 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
                 input_df = pd.read_csv(path_to_network_data, header = None,
                         dtype = {0:str, 1:str}).rename(columns = {0:'source', 1:'target', 2:'multiplicity'})
         else:
-            input_df = pd.read_csv(path_to_network_data, dtype = {network_file_header_names['source']:str,
-                network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
-                    network_file_header_names['target']:'target'})
+            if 'multiplicity' in network_file_header_names.keys():
+                input_df = pd.read_csv(path_to_network_data, dtype = {network_file_header_names['source']:str,
+                    network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
+                        network_file_header_names['target']:'target',
+                        network_file_header_names['multiplicity']:'multiplicity'})
+            else:
+                input_df = pd.read_csv(path_to_network_data, dtype = {network_file_header_names['source']:str,
+                    network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
+                        network_file_header_names['target']:'target'})
 
         #print(input_df)
+        #print()
         input_df = self.__check_input_and_convert_to_matrix(input_df) 
         print('Finished loading network..')
 
@@ -391,7 +398,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             raise AttributeError('Ideological Embedding model has not been fitted.')
 
     def __check_input_and_convert_to_matrix(self, input_df):
-
         # first perform validity checks over the input 
         if not isinstance(input_df, pd.DataFrame):
             raise ValueError('Input should be a pandas dataframe.')
@@ -410,15 +416,16 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         input_df['target'] = input_df['target'].astype(str)
 
         # the file should either have repeated edges or a multiplicity column but not both
-        has_more_columns = True if input_df.columns.size > 2 else False
+        #has_more_columns = True if input_df.columns.size > 2 else False
         has_repeated_edges = True if input_df.duplicated(subset = ['source', 'target']).sum() > 0 else False
-        if has_more_columns and has_repeated_edges:
+        if ('multiplicity' in input_df.columns) and has_repeated_edges:
             raise ValueError('There cannot be repeated edges AND a 3rd column with edge multiplicities.')
 
         # if there is a third column, it must containt integers
-        if has_more_columns:
-            if 'multiplicity' not in input_df.columns:
-                raise ValueError('Input dataframe should have a multiplicity column.')
+        #if has_more_columns:
+        #    if 'multiplicity' not in input_df.columns:
+        #        raise ValueError('Input dataframe should have a multiplicity column.')
+        if 'multiplicity' in input_df.columns:
             input_df['multiplicity'] = input_df['multiplicity'].astype(int) # will fail if missing element, or cannot convert
 
         # checking if final network is bipartite:
@@ -427,8 +434,9 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         if not self.is_bipartite_:
             if self.force_bipartite:
                 input_df = input_df[~input_df['source'].isin(common_nodes_np)]
-                self.is_bipartite_ = np.intersect1d(input_df['source'], input_df['target']).size == 0
-        print('Bipartite graph: ', self.is_bipartite_)
+        print('Bipartite graph: ', self.is_bipartite_)  #  HERE
+        print('3', input_df.shape)
+        print()
 
         # remove nodes with small degree if needed
         degree_per_target = None
@@ -455,6 +463,9 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
         # and then assemble the matrices to be fed to Ideological embedding
         ntwrk_df = input_df[['source', 'target']]
+        print(input_df)
+        print()
+        print(ntwrk_df)
 
         n_i, r = ntwrk_df['target'].factorize()
         #self.target_entity_no_ = len(np.unique(n_i))
