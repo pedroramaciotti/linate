@@ -128,7 +128,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates(X)
         else:
             self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates()
-
+        
         if self.standardize_mean:
             std_scaler = StandardScaler(with_mean = self.standardize_mean, with_std = self.standardize_std)
             std_scaler.fit(pd.concat([self.ideological_embedding_source_latent_dimensions_,
@@ -142,15 +142,13 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
                     data = std_scaler.transform(self.ideological_embedding_source_latent_dimensions_))
             self.ideological_embedding_source_latent_dimensions_ = source_scaled_dim
 
-            print(self.ideological_embedding_target_latent_dimensions_)
-
         column_names = self.ideological_embedding_source_latent_dimensions_.columns
         new_column_names = []
         for c in column_names:
             new_column_names.append('latent_dimension_' + str(c))
         self.ideological_embedding_source_latent_dimensions_.columns = new_column_names
         self.ideological_embedding_source_latent_dimensions_.index = self.row_ids_
-        self.ideological_embedding_source_latent_dimensions_.index.name = 'source ID'
+        self.ideological_embedding_source_latent_dimensions_.index.name = 'source_id'
         #self.ideological_embedding_source_latent_dimensions_.reset_index(inplace = True)
         #print(self.ideological_embedding_source_latent_dimensions_)
 
@@ -160,7 +158,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             new_column_names.append('latent_dimension_' + str(c))
         self.ideological_embedding_target_latent_dimensions_.columns = new_column_names
         self.ideological_embedding_target_latent_dimensions_.index = self.column_ids_
-        self.ideological_embedding_target_latent_dimensions_.index.name = 'target ID'
+        self.ideological_embedding_target_latent_dimensions_.index.name = 'target_id'
         #print(self.ideological_embedding_target_latent_dimensions_)
 
         self.eigenvalues_ = self.ideological_embedding_model.eigenvalues_  # list
@@ -434,9 +432,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         if not self.is_bipartite_:
             if self.force_bipartite:
                 input_df = input_df[~input_df['source'].isin(common_nodes_np)]
-        print('Bipartite graph: ', self.is_bipartite_)  #  HERE
-        print('3', input_df.shape)
-        print()
+        print('Bipartite network:', self.is_bipartite_)
 
         # remove nodes with small degree if needed
         degree_per_target = None
@@ -463,9 +459,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
         # and then assemble the matrices to be fed to Ideological embedding
         ntwrk_df = input_df[['source', 'target']]
-        print(input_df)
-        print()
-        print(ntwrk_df)
 
         n_i, r = ntwrk_df['target'].factorize()
         #self.target_entity_no_ = len(np.unique(n_i))
