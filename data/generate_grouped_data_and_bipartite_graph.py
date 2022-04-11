@@ -36,7 +36,11 @@ def main():
     phi_info_df = pd.DataFrame(phi_info, columns = ['index', 'group', 'id'])
     phi_info_df.to_csv(params['data_gen']['phi_info_header'], sep = ',', index = None)
     #
-    gen.save_array_to_file(phi_group, params['data_gen']['phi_group'], format_specifier = '%f')
+    phi_group_df = pd.DataFrame(phi_group)
+    phi_group_df.index.name = 'group_id'
+    phi_group_df = phi_group_df.reset_index()
+    phi_group_df.to_csv(params['data_gen']['phi_group'], sep = ',', index = None)
+    #
     gen.save_array_to_file(phi_group_info, params['data_gen']['phi_group_info'], format_specifier = '%i')
 
     # followers in ideological space
