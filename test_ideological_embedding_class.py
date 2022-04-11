@@ -15,15 +15,35 @@ def main(params_filename):
     params = configparser.ConfigParser()  # read parameters from file
     params.read(sys.argv[1])
 
-    standardize_mean = False
-    ideological_embedding_model = IdeologicalEmbedding(n_latent_dimensions = -1, engine = 'fbpca',
-            in_degree_threshold = 2, out_degree_threshold = 2, force_bipartite = False,
-            standardize_mean = standardize_mean, standardize_std = True)
-    #ideological_embedding_model = IdeologicalEmbedding(n_latent_dimensions = 5, engine = 'linate_ds',
-    #        in_degree_threshold = 2, out_degree_threshold = 2, force_bipartite = False,
-    #        standardize_mean = standardize_mean, standardize_std = True)
+    random_state = None
 
-    # This is the original example
+    standardize_mean = True
+    in_degree_threshold = params['ideological_embedding']['in_degree_threshold']
+    if in_degree_threshold == 'None':
+        in_degree_threshold = None
+    out_degree_threshold = params['ideological_embedding']['out_degree_threshold']
+    if out_degree_threshold == 'None':
+        out_degree_threshold = None
+    force_bipartite = params['ideological_embedding']['force_bipartite']
+    if force_bipartite == 'True':
+        force_bipartite = True
+    else:
+        force_bipartite = False
+    standardize_mean = params['ideological_embedding']['standardize_mean']
+    if standardize_mean == 'True':
+        standardize_mean = True
+    else:
+        standardize_mean = False
+    standardize_std = params['ideological_embedding']['standardize_std']
+    if standardize_std == 'True':
+        standardize_std = True
+    else:
+        standardize_std = False
+    ideological_embedding_model = IdeologicalEmbedding(n_latent_dimensions = int(params['ideological_embedding']
+        ['n_latent_dimensions']), engine = params['ideological_embedding']['engine'],
+            in_degree_threshold = in_degree_threshold, out_degree_threshold = out_degree_threshold,
+            force_bipartite = force_bipartite, standardize_mean = standardize_mean,
+            standardize_std = standardize_std, random_state = random_state)
 
     network_file_header_names = None
     if 'source' in params['ideological_embedding'].keys():
@@ -53,8 +73,8 @@ def main(params_filename):
     print('Eigenvalues', ideological_embedding_model.eigenvalues_)
     print('Total inertia', ideological_embedding_model.total_inertia_)
     print('Explained inertia', ideological_embedding_model.explained_inertia_)
-    '''
 
+    '''
     # compute distance of predicted dimensions with given benchmark dimensions
     #benchmark_ideological_dimensions_data_header_names = None # default: first column is entity, rest of columns are dimensions
     benchmark_ideological_dimensions_data_header_names = {'entity': 'target ID'} # has to define an 'entity' column
