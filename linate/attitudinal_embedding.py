@@ -100,7 +100,7 @@ class AttitudinalEmbedding(BaseEstimator, TransformerMixin):
                 raise ValueError('Wrong input dimensions')
 
             Y_tilda_np = np.matmul(self.T_tilda_aff_np_, X_tilda_np)
-            print(Y_tilda_np.shape)
+            #print(Y_tilda_np.shape)
             Y_tilda_np = Y_tilda_np[:-1]
             Y_tilda_np = Y_tilda_np.T
 

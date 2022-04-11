@@ -4,6 +4,8 @@ import synthetic_data_generation as gen
 
 import numpy as np
 
+import pandas as pd
+
 import configparser
 
 import sys
@@ -30,6 +32,10 @@ def main():
             ref_mixmod, entity_id_prefix = 'r_', random_state = random_state)
     gen.save_array_to_file(phi, params['data_gen']['phi'], format_specifier = '%f')
     gen.save_array_to_file(phi_info, params['data_gen']['phi_info'], format_specifier = '%s')
+    # also save it with a header for downstream processing
+    phi_info_df = pd.DataFrame(phi_info, columns = ['index', 'group', 'id'])
+    phi_info_df.to_csv(params['data_gen']['phi_info_header'], sep = ',', index = None)
+    #
     gen.save_array_to_file(phi_group, params['data_gen']['phi_group'], format_specifier = '%f')
     gen.save_array_to_file(phi_group_info, params['data_gen']['phi_group_info'], format_specifier = '%i')
 
@@ -54,7 +60,11 @@ def main():
             entity_dimensions_info = phi_info.T)
     #print(r)
     gen.save_array_to_file(r, params['data_gen']['r'], format_specifier = '%f')
-    gen.save_array_to_file(r_group, params['data_gen']['r_group'], format_specifier = '%f')
+    #
+    r_group_df = pd.DataFrame(r_group)
+    r_group_df.rename({0: 'group_id'}, axis = 1, inplace = True)
+    r_group_df['group_id'] = r_group_df['group_id'].astype(int)
+    r_group_df.to_csv(params['data_gen']['r_group'], sep = ',', index = None)
 
     theta = gen.load_array_from_file(params['data_gen']['theta'])
     f = gen.transform_entity_dimensions_to_new_space(theta.T, Tideo2att_tilde,

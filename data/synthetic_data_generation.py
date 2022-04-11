@@ -183,13 +183,15 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
         groups = entity_dimensions_info[1].astype(int)
         group_ids = np.unique(groups)
 
-        transformed_entity_groups = np.empty([len(group_ids), transformed_entity_dimensions.shape[1]])
+        transformed_entity_groups = np.empty([len(group_ids), 1 + transformed_entity_dimensions.shape[1]])
         eg_indx = 0
         for g in group_ids:
             g_indx = np.where(groups == g)
             group = transformed_entity_dimensions[g_indx]
-            transformed_entity_groups[eg_indx] = np.mean(group, axis = 0)
+            transformed_entity_groups[eg_indx, 0] = eg_indx
+            transformed_entity_groups[eg_indx, 1:] = np.mean(group, axis = 0)
             eg_indx = eg_indx + 1
+
         return (transformed_entity_dimensions, transformed_entity_groups)
 
     return (transformed_entity_dimensions)

@@ -1,4 +1,4 @@
-# linate class
+# test AttitudinalEmbedding
 
 from linate import AttitudinalEmbedding
 
@@ -61,8 +61,6 @@ def main():
     print('Number of considered idelogocal dimensions', ae_model.employed_N_)
     #print('Transformation parameters', ae_model.T_tilda_aff_np_)
 
-    # Note from 18th March meeting:
-    # save index and columns of T_tilde so people can know what are te domain and image dimensions of the transformation
     ae_model.save_transformation_parameters('ideological_embedding_results/affine_transformation.csv')
 
     # apply transformation to create attitudinal embeddings
