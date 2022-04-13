@@ -56,13 +56,14 @@ def main():
     # Creating unobservable attitudes from prescribed ideologies: A       #
     #######################################################################
 
+    # loads the augmented transformation
     Tideo2att_tilde = gen.load_augmented_transformation_from_file(params['data_gen']['Tideo2att_tilde'])
 
     phi = gen.load_array_from_file(params['data_gen']['phi'])
     phi_info = gen.load_array_from_file(params['data_gen']['phi_info'], is_str = True)
     r, r_group = gen.transform_entity_dimensions_to_new_space(phi.T, Tideo2att_tilde,
             entity_dimensions_info = phi_info.T)
-    #print(r)
+    #print(r[:5])
     gen.save_array_to_file(r, params['data_gen']['r'], format_specifier = '%f')
     #
     r_group_df = pd.DataFrame(r_group)
@@ -75,21 +76,37 @@ def main():
             produce_group_dimensions = False)
     gen.save_array_to_file(f, params['data_gen']['f'], format_specifier = '%f')
 
+    # perform an additional transformation in the same space (can be I)
+    A_P = gen.load_augmented_transformation_from_file(params['data_gen']['A_P'])
+
+    r_P, r_P_group = gen.transform_entity_dimensions_same_space(r.T, A_P, entity_dimensions_info = phi_info.T)
+    #print(r_P_group)
+    gen.save_array_to_file(r_P, params['data_gen']['r_P'], format_specifier = '%f')
+    #
+    r_P_group_df = pd.DataFrame(r_P_group)
+    r_P_group_df.rename({0: 'group_id'}, axis = 1, inplace = True)
+    r_P_group_df['group_id'] = r_P_group_df['group_id'].astype(int)
+    r_P_group_df.to_csv(params['data_gen']['r_P_group'], sep = ',', index = None)
+
+    f_P = gen.transform_entity_dimensions_same_space(f.T, A_P, produce_group_dimensions = False)
+    #print(r_P_group)
+    gen.save_array_to_file(f_P, params['data_gen']['f_P'], format_specifier = '%f')
+
     #############################################################################
     # Computing the social graph using distances within a given space           #
     #############################################################################
-    r_info = gen.load_array_from_file(params['data_gen']['phi_info'], is_str = True)
-    r = gen.load_array_from_file(params['data_gen']['r'])
-    #print(r_info.shape, r.shape)
+    r_P_info = gen.load_array_from_file(params['data_gen']['phi_info'], is_str = True)
+    r_P = gen.load_array_from_file(params['data_gen']['r_P'])
+    #print(r_P_info.shape, r_P.shape)
 
-    f_info = gen.load_array_from_file(params['data_gen']['theta_info'], is_str = True)
-    f = gen.load_array_from_file(params['data_gen']['f'])
-    #print(f_info.shape, f.shape)
+    f_P_info = gen.load_array_from_file(params['data_gen']['theta_info'], is_str = True)
+    f_P = gen.load_array_from_file(params['data_gen']['f_P'])
+    #print(f_P_info.shape, f_P.shape)
 
     alpha = int(params['data_gen']['alpha'])
     beta = int(params['data_gen']['beta'])
-    social_graph_df, all_edges = gen.compute_social_graph(f_info.T[0], f_info.T[2], f, r_info.T[0],
-            r_info.T[2], r, random_state, alpha, beta, output_all_distances = True)
+    social_graph_df, all_edges = gen.compute_social_graph(f_P_info.T[0], f_P_info.T[2], f_P, r_P_info.T[0],
+            r_P_info.T[2], r_P, random_state, alpha, beta, output_all_distances = True)
     gen.save_dataframe_to_file(social_graph_df, params['data_gen']['social_graph'])
     gen.save_dataframe_to_file(all_edges, params['data_gen']['all_edges'])
 

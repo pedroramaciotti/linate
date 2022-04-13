@@ -196,6 +196,61 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
 
     return (transformed_entity_dimensions)
 
+def load_transformation_from_file(transformation_filename):
+
+    if transformation_filename is None:
+        raise ValueError('Transformation filename should be provided') 
+
+    if not os.path.isfile(transformation_filename):
+        raise ValueError('Transformation file does not exist') 
+
+    A_P_np = np.loadtxt(transformation_filename, delimiter = ",")
+
+    if (len(A_P_np.shape)) != 2:
+        raise ValueError('Transformation matrix should have 2 dimensions') 
+
+    return (A_P_np)
+
+# assume entity dimensions matrix is in (dimensions x entity) format
+def transform_entity_dimensions_same_space(entity_dimensions, A_P,
+        produce_group_dimensions = True, entity_dimensions_info = None):
+
+    if not isinstance(entity_dimensions, np.ndarray):
+        raise ValueError('Entity dimensions should be a numpy array') 
+
+    if not isinstance(A_P, np.ndarray):
+        raise ValueError('Transformation matrix should be a numpy array') 
+
+    if A_P.shape[0] != A_P.shape[1]:
+        raise ValueError('Transformation should not change space') 
+
+    if A_P.shape[1] != entity_dimensions.shape[0]:
+        raise ValueError('Transformation and entity dimension matrices cannot be multiplied') 
+
+    transformed_entity_dimensions = np.matmul(A_P, entity_dimensions)
+    transformed_entity_dimensions = transformed_entity_dimensions.T
+
+    if produce_group_dimensions:
+        #entity_groups[g_indx] = np.mean(k_entities, axis = 0)
+        if entity_dimensions_info is None:
+            raise ValueError('For group level dimensions the \'entity_dimentions_info \' parameter cannot be \'None\'.') 
+
+        groups = entity_dimensions_info[1].astype(int)
+        group_ids = np.unique(groups)
+
+        transformed_entity_groups = np.empty([len(group_ids), 1 + transformed_entity_dimensions.shape[1]])
+        eg_indx = 0
+        for g in group_ids:
+            g_indx = np.where(groups == g)
+            group = transformed_entity_dimensions[g_indx]
+            transformed_entity_groups[eg_indx, 0] = eg_indx
+            transformed_entity_groups[eg_indx, 1:] = np.mean(group, axis = 0)
+            eg_indx = eg_indx + 1
+
+        return (transformed_entity_dimensions, transformed_entity_groups)
+
+    return (transformed_entity_dimensions)
+
 #############################################################################
 # Computing the social graph using distances within a given space           #
 #############################################################################
