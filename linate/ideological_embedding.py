@@ -354,7 +354,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
                     network_file_header_names['target']:str}).rename(columns = {network_file_header_names['source']:'source', 
                         network_file_header_names['target']:'target'})
 
-        #print(input_df)
+        #print(input_df.shape, len(input_df.target.unique()))
         #print()
         input_df = self.__check_input_and_convert_to_matrix(input_df) 
         print('Finished loading network..')
