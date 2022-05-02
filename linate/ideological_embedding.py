@@ -199,12 +199,12 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         try:
             X = None
             if use_target_ideological_embedding:
-                X = self.ideological_embedding_target_latent_dimensions_
+                X = self.ideological_embedding_target_latent_dimensions_.copy()
 
                 # sort to achieve correspondence with Y
                 X = X.sort_values('target ID', ascending = True)
             else:
-                X = self.ideological_embedding_source_latent_dimensions_
+                X = self.ideological_embedding_source_latent_dimensions_.copy()
 
                 # sort to achieve correspondence with Y
                 X = X.sort_values('source ID', ascending = True)
