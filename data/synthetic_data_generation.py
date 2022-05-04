@@ -157,7 +157,8 @@ def load_augmented_transformation_from_file(transformation_filename):
 
 # assume entity dimensions matrix is in (dimensions x entity) format
 def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff, 
-        produce_group_dimensions = True, entity_dimensions_info = None):
+        produce_group_dimensions = True, entity_dimensions_info = None,
+        introduce_standard_error = False, error_std = None):
 
     if not isinstance(entity_dimensions, np.ndarray):
         raise ValueError('Entity dimensions should be a numpy array') 
@@ -171,8 +172,18 @@ def transform_entity_dimensions_to_new_space(entity_dimensions, T_tilda_aff,
     if T_tilda_aff.shape[1] != entity_dimensions_tilda_np.shape[0]:
         raise ValueError('Transformation and entity dimension matrices cannot be multiplied') 
 
+    if introduce_standard_error == True:
+        if error_std is None:
+            raise ValueError('Need to provide std of standard error') 
+        if error_std < 0.0:
+            raise ValueError('Std of standard error should be non-negative') 
+
     transformed_entity_dimensions = np.matmul(T_tilda_aff, entity_dimensions_tilda_np)
     transformed_entity_dimensions = transformed_entity_dimensions[:-1]
+    if introduce_standard_error == True:
+        error = np.vstack([np.random.normal(loc = 0.0, scale = error_std, 
+            size = (2, entity_dimensions.shape[1])), np.ones((entity_dimensions.shape[1]))])
+        transformed_entity_dimensions = transformed_entity_dimensions + error
     transformed_entity_dimensions = transformed_entity_dimensions.T
 
     if produce_group_dimensions:
