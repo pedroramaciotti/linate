@@ -36,6 +36,9 @@ def main():
         ideological_embedding_header_names = {'entity' : params['attitudinal_embedding']['ideological_dimensions_entity']}
     X = ae_model.load_ideological_embedding_from_file(params['attitudinal_embedding']['ideological_dimensions_file'],
             ideological_embedding_header_names = ideological_embedding_header_names)
+    X['entity'] = X['entity'].astype(float)  # TODO : take out
+    X['entity'] = X['entity'].astype(int)
+    X['entity'] = X['entity'].astype(str)
 
     # if attitudinal_reference_data is given at the group level need to aggregate ideological embeddings accordingly
     entity_to_group_mapping_header_names = None # no header : first column is entity (node ID), second is group name
@@ -79,6 +82,9 @@ def main():
         ideological_embedding_header_names = {'entity' : params['attitudinal_embedding']['target_ideological_entity']}
     target_ideological = ae_model.load_ideological_embedding_from_file(params['attitudinal_embedding']['target_ideological_dimensions_file'],
             ideological_embedding_header_names = ideological_embedding_header_names)
+    target_ideological['entity'] = target_ideological['entity'].astype(float)  # TODO : take out
+    target_ideological['entity'] = target_ideological['entity'].astype(int)
+    target_ideological['entity'] = target_ideological['entity'].astype(str)
     target_attitudinal = ae_model.transform(target_ideological)
     target_attitudinal.to_csv(params['attitudinal_embedding']['target_attitudinal_dimensions_file'], sep = ',', index = None)
     #
