@@ -18,6 +18,7 @@ class AttitudinalEmbedding(BaseEstimator, TransformerMixin):
         self.N = N # default : None --> P (number of groups) - 1
 
     def fit(self, X, Y):
+
         if not isinstance(X, pd.DataFrame):
             raise ValueError('\'X\' parameter must be a pandas dataframe')
 
