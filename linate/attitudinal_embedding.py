@@ -36,6 +36,9 @@ class AttitudinalEmbedding(BaseEstimator, TransformerMixin):
         X = X[X['entity'].isin(ga_merge_df.entity.unique())]
         Y = Y[Y['entity'].isin(ga_merge_df.entity.unique())]
 
+        print('Groups: ', Y['entity'].values)
+        print('Y columns: ', len(Y.columns), Y.columns)
+
         # finally fit an affine transformation to map X --> Y
 
         # first sort X and Y by entity (so as to have the corresponding mapping in the same rows)
