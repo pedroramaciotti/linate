@@ -54,6 +54,7 @@ def main():
     #entity_to_group_agg_fun = 'min'
     #entity_to_group_agg_fun = custom_agg_python_func
     X = ae_model.convert_to_group_ideological_embedding(X, XG, entity_to_group_agg_fun = entity_to_group_agg_fun)
+    group_ideological = X.copy()
 
     # load attitudinal reference data
     attitudinal_reference_data_header_names = None # no header : first is group name, rest is dimensions in attitudinal space
@@ -95,6 +96,9 @@ def main():
             ideological_embedding_header_names = ideological_embedding_header_names)
     source_attitudinal = ae_model.transform(source_ideological)
     source_attitudinal.to_csv(params['attitudinal_embedding']['source_attitudinal_dimensions_file'], sep = ',', index = None)
+    #
+    group_attitudinal = ae_model.transform(group_ideological)
+    group_attitudinal.to_csv(params['attitudinal_embedding']['group_attitudinal_dimensions_file'], sep = ',', index = None)
 
 if __name__ == "__main__":
     main()
