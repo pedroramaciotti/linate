@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
   name = 'linate',         
-  version = '0.2',      
+  version = '0.3',      
   license='MIT',        
   description = 'Language-Independent Network Attitudinal Embedding',   
   author = 'Pedro Ramaciotti Morales',                      
