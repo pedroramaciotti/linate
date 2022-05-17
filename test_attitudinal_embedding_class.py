@@ -22,7 +22,7 @@ def main():
     params = configparser.ConfigParser()  # read parameters from file
     params.read(sys.argv[1])
 
-    N = params['ideological_embedding']['in_degree_threshold']
+    N = params['attitudinal_embedding']['N']
     if N == 'None':
         N = None
     else:
