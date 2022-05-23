@@ -43,7 +43,7 @@ def main(params_filename):
         ['n_latent_dimensions']), engine = params['ideological_embedding']['engine'],
             in_degree_threshold = in_degree_threshold, out_degree_threshold = out_degree_threshold,
             force_bipartite = force_bipartite, standardize_mean = standardize_mean,
-            standardize_std = standardize_std, random_state = random_state)
+            standardize_std = standardize_std, random_state = random_state, force_full_rank = False)
 
     network_file_header_names = None
     if 'source' in params['ideological_embedding'].keys():

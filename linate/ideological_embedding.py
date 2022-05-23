@@ -24,7 +24,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
     def __init__(self, n_latent_dimensions = 2, n_iter = 10, check_input = True, random_state = None,
             engine = 'auto', in_degree_threshold = None, out_degree_threshold = None,
-            force_bipartite = True, standardize_mean = True, standardize_std = False):
+            force_bipartite = True, standardize_mean = True, standardize_std = False, force_full_rank = False):
 
         self.random_state = random_state
 
@@ -45,7 +45,11 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         self.standardize_mean = standardize_mean
         self.standardize_std = standardize_std
 
+        self.force_full_rank = force_full_rank
+
     def fit(self, X, y = None):
+
+        X = X.copy()
 
         # first try to load engine module
         self.ideological_embedding_module_name = 'prince'
@@ -57,6 +61,29 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         except ModuleNotFoundError:
             raise ValueError(self.ideological_embedding_module_name
                     + ' module is not installed; please install and make it visible if you want to use it')
+
+        if self.force_full_rank:
+            if not isinstance(X, pd.DataFrame):
+                raise ValueError('To force full rank X needs to be a dataframe...')
+
+            if 'source' not in X.columns:
+                raise ValueError('To force full rank X needs to have a \'source\' column...')
+
+            if 'target' not in X.columns:
+                raise ValueError('To force full rank X needs to have a \'target\' column...')
+            
+            # check if X is full rank
+            follow_pattern_df = X.sort_values('target').groupby('source').target.agg(' '.join)
+            unique_follow_pattern = follow_pattern_df.drop_duplicates(inplace = False)
+            unique_follow_pattern = unique_follow_pattern.index.tolist()
+            is_original_full_rank = False
+            if len(X.index.tolist()) == len(unique_follow_pattern):
+                is_original_full_rank = True
+            else:
+                original_X = X.copy()
+                X = X[X['source'].isin(unique_follow_pattern)]
+            follow_pattern_df = follow_pattern_df.to_frame()
+            follow_pattern_df = follow_pattern_df.reset_index()
 
         if isinstance(X, pd.DataFrame):
             X = self.__check_input_and_convert_to_matrix(X)
@@ -122,7 +149,6 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             self.ideological_embedding_source_latent_dimensions_ = self.ideological_embedding_model.row_coordinates(X)
         else:
             self.ideological_embedding_source_latent_dimensions_ = self.ideological_embedding_model.row_coordinates()
-        #print(self.ideological_embedding_source_latent_dimensions_)
 
         if self.engine in self.default_ideological_embedding_engines:
             self.ideological_embedding_target_latent_dimensions_ = self.ideological_embedding_model.column_coordinates(X)
@@ -149,7 +175,19 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
         self.ideological_embedding_source_latent_dimensions_.columns = new_column_names
         self.ideological_embedding_source_latent_dimensions_.index = self.row_ids_
         self.ideological_embedding_source_latent_dimensions_.index.name = 'source_id'
-        #self.ideological_embedding_source_latent_dimensions_.reset_index(inplace = True)
+
+        if self.force_full_rank:
+            if not is_original_full_rank:
+                self.ideological_embedding_source_latent_dimensions_ = self.ideological_embedding_source_latent_dimensions_.reset_index()
+                source_target_map_df = pd.merge(self.ideological_embedding_source_latent_dimensions_, follow_pattern_df,
+                        left_on = 'source_id', right_on = 'source', how = 'left')
+                source_target_map_df.drop(columns = 'source', inplace = True)
+
+                self.ideological_embedding_source_latent_dimensions_ = pd.merge(follow_pattern_df,
+                        source_target_map_df, on = 'target', how = 'inner')
+                self.ideological_embedding_source_latent_dimensions_.drop(columns = ['target', 'source_id'], inplace = True)
+                self.ideological_embedding_source_latent_dimensions_.rename(columns = {'source': 'source_id'}, inplace = True)
+                self.ideological_embedding_source_latent_dimensions_.index.name = 'source_id'
         #print(self.ideological_embedding_source_latent_dimensions_)
 
         column_names = self.ideological_embedding_target_latent_dimensions_.columns
@@ -158,7 +196,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
             new_column_names.append('latent_dimension_' + str(c))
         self.ideological_embedding_target_latent_dimensions_.columns = new_column_names
         self.ideological_embedding_target_latent_dimensions_.index = self.column_ids_
-        self.ideological_embedding_target_latent_dimensions_.index.name = 'target_id'
+        self.ideological_embedding_target_latent_dimensions_.index.name = 'target_id' 
         #print(self.ideological_embedding_target_latent_dimensions_)
 
         self.eigenvalues_ = self.ideological_embedding_model.eigenvalues_  # list
@@ -356,7 +394,7 @@ class IdeologicalEmbedding(BaseEstimator, TransformerMixin):
 
         #print(input_df.shape, len(input_df.target.unique()))
         #print()
-        input_df = self.__check_input_and_convert_to_matrix(input_df) 
+        #input_df = self.__check_input_and_convert_to_matrix(input_df) 
         print('Finished loading network..')
 
         return(input_df)
