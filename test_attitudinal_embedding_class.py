@@ -70,6 +70,8 @@ def main():
     #
     # node level
     #Y = ae_model.load_attitudinal_referential_coordinates_from_file('/home/foula/correspondence_analysis/linate_module/ideological_embedding_results/generated_node_attitudinal_coordinates.csv', attitudinal_reference_data_header_names = attitudinal_reference_data_header_names)
+    #print(Y)
+    #exit(0)
 
     # Fitting
     ae_model.fit(X, Y)
