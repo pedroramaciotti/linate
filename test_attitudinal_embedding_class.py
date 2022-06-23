@@ -39,6 +39,9 @@ def main():
     X['entity'] = X['entity'].astype(float)  # TODO : take out
     X['entity'] = X['entity'].astype(int)
     X['entity'] = X['entity'].astype(str)
+    if 'ideological_dimensions' in params['attitudinal_embedding'].keys():
+        X = X[['entity'] + params['attitudinal_embedding']['ideological_dimensions'].split(',')]
+    print(X)
 
     # if attitudinal_reference_data is given at the group level need to aggregate ideological embeddings accordingly
     entity_to_group_mapping_header_names = None # no header : first column is entity (node ID), second is group name
