@@ -56,6 +56,7 @@ class AttitudinalEmbedding(BaseEstimator, TransformerMixin):
         # convert X to X_tilda
         X_df = X.drop('entity', axis = 1, inplace = False)
         X_np = X_df.to_numpy()
+        print('Number of political parties: ', X_np.shape[0])
         if self.N is None:
             self.employed_N_ = X_np.shape[0] - 1
         else:
